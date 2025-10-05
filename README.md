@@ -1,329 +1,373 @@
-# 💰 Budget Trackers - Personal Finance Dashboard
+# 💰 Monthly Budget Tracker
 
-A comprehensive personal finance management application built with Next.js 15, Supabase, and TypeScript. Track your income, expenses, investments, and net worth with real-time updates and beautiful dark mode.
+A comprehensive personal finance management application built with Next.js 15, React 18, TypeScript, and Supabase.
 
-**Financial Goal:** Rp 20-35 miliar di Year 17 (Dana pendidikan anak fully funded!)
+## ✨ Features
 
-## 🌟 Features
+### 📊 Core Features
+- **Dashboard Overview** - Real-time financial summary with charts
+- **Transactions Management** - Track income, expenses, and transfers with pagination
+- **Transaction Attachments** - Upload receipts, invoices, and images (PDF, JPG, PNG)
+- **Accounts Management** - Multi-account support with sub-accounts (pockets, savers, wallets)
+- **Categories** - Customizable income/expense categories with icons and colors
+- **Recurring Transactions** - Auto-generate monthly/weekly/yearly transactions
+- **Budget Tracking** - Set budgets and track spending vs actual
+- **Budget Alerts** - Email notifications when reaching 80% or 100% of budget
+- **Cash Flow Projection** - Forecast future balance based on recurring transactions
+- **Import CSV** - Bulk import transactions from CSV files
 
-### Core Features
-- **📊 Dashboard** - Overview of financial status with key metrics
-- **💰 Income & Expense Tracking** - Manage all transactions with categories
-- **🏦 Bank Accounts** - Track multiple accounts with sub-account support (Jago Pockets, Jenius Flexy Saver)
-- **📈 Investment Tracking** - Monitor stocks, crypto, and mutual funds with P&L calculation
-- **🏠 KPR Tracker** - Mortgage tracking with bombing strategy calculator
-- **📑 Reports** - Transaction and investment reports with filters and CSV export
-- **🎯 Net Worth Tracker** - 17-year financial goal tracking with projections
-- **🏷️ Categories** - Customizable income/expense categories with icons and colors
+### 📈 Analytics & Reports
+- **Category Analytics** - Pie charts and trends for income/expense by category
+- **Budget vs Actual** - Visual comparison with progress bars
+- **Income Analytics** - Toggle between income and expense analytics
+- **Net Worth Tracking** - Track total assets and liabilities
+- **Monthly Breakdown** - Detailed month-by-month analysis
 
-### UI/UX Features
-- **🌙 Dark Mode** - Beautiful dark theme (#191919 cards, #3b3b3b borders)
-- **⚡ Real-time Updates** - Instant UI updates with optimistic rendering
-- **📱 Responsive Design** - Mobile-first design with adaptive layouts
-- **🔄 Global Loading** - Unified loading states across all pages
-- **⚙️ Settings** - Customize app title, currency, date format, and more
+### 💼 Investment & Debt Tracking
+- **Investment Portfolios** - Track stocks, crypto, mutual funds (Bibit, Binance)
+- **KPR/Mortgage Tracker** - Payment schedules with principal/interest breakdown
+- **Multi-currency Support** - IDR, USD, EUR, SGD, MYR
+
+### ⚙️ Settings & Customization
+- **App Settings** - Customize app title, currency, date format, fiscal year
+- **SMTP Configuration** - Configure email notifications per user
+- **Theme Support** - Light, Dark, and System auto theme
+- **Multi-user Support** - Primary and partner roles (household accounts)
+
+### 🔔 Notifications
+- **Real-time Notifications** - Budget alerts with notification bell
+- **Email Alerts** - Beautiful HTML email notifications for budget thresholds
+- **Toast Messages** - User-friendly feedback for all actions
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: Next.js 15 (App Router), React 18, TypeScript
-- **Styling**: Tailwind CSS v4, Shadcn UI components
-- **Backend**: Supabase (PostgreSQL + Auth + RLS)
+- **Framework**: Next.js 15 (App Router) with Turbopack
+- **Language**: TypeScript
+- **UI Library**: React 18
+- **Styling**: Tailwind CSS
+- **UI Components**: Radix UI primitives
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth
+- **Storage**: Supabase Storage
+- **Email**: Nodemailer with SMTP
 - **Charts**: Recharts
-- **Date Utils**: date-fns
-- **Icons**: Lucide React
+- **Date Handling**: date-fns
+- **Forms**: React Hook Form (optional)
+- **State Management**: React Context API
+
+## 📦 Installation
+
+### Prerequisites
+- Node.js 18+
+- npm or yarn
+- Supabase account
+
+### 1. Clone Repository
+
+```bash
+git clone <your-repo-url>
+cd monthly-budget/dashboard-app
+```
+
+### 2. Install Dependencies
+
+```bash
+npm install
+```
+
+### 3. Setup Supabase
+
+#### Create Supabase Project
+1. Go to [supabase.com](https://supabase.com)
+2. Create new project
+3. Copy your project URL and anon key
+
+#### Run Database Schema
+1. Open Supabase Dashboard → SQL Editor
+2. Copy content from `migrations/FULL_SCHEMA.sql`
+3. Execute the SQL script
+4. Verify all tables were created successfully
+
+#### Setup Storage Bucket
+1. Go to Supabase Dashboard → Storage
+2. Create new bucket named `transaction-attachments`
+3. Set it to **Private** (not public)
+4. Go to Policies tab and run the storage policies from `migrations/FULL_SCHEMA.sql` (commented section at bottom)
+
+### 4. Environment Variables
+
+Create `.env.local` file in the root directory:
+
+```env
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+# App Configuration
+NEXT_PUBLIC_APP_NAME=Monthly Budget Tracker
+NEXT_PUBLIC_APP_VERSION=2.0.0
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# SMTP Email Configuration (Optional - can be configured in Settings page)
+SMTP_HOST=smtp.your-provider.com
+SMTP_PORT=587
+SMTP_USER=your-email@example.com
+SMTP_PASS=your-email-password
+SMTP_FROM=Budget Tracker <noreply@example.com>
+```
+
+**Getting Supabase Keys:**
+- **URL & Anon Key**: Dashboard → Settings → API → Project URL and `anon` `public` key
+- **Service Role Key**: Dashboard → Settings → API → `service_role` `secret` key (⚠️ Keep this secret!)
+
+### 5. Run Development Server
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## 🚀 Deployment
+
+### Vercel (Recommended)
+
+1. Push code to GitHub
+2. Import project to Vercel
+3. Add environment variables in Vercel dashboard
+4. Deploy!
+
+### Other Platforms
+
+Compatible with any platform that supports Next.js:
+- Netlify
+- Railway
+- Render
+- AWS Amplify
+
+## 📖 Usage Guide
+
+### First Time Setup
+
+1. **Create Account**
+   - Sign up with email/password
+   - Complete profile setup (name, role)
+
+2. **Configure Settings**
+   - Go to Settings → Customize app title, currency, etc.
+   - (Optional) Configure SMTP for email notifications
+
+3. **Add Accounts**
+   - Create your bank accounts/wallets
+   - Set initial balances
+
+4. **Setup Categories**
+   - Default categories are provided
+   - Customize or add your own
+
+5. **Start Tracking**
+   - Add your first transaction
+   - Set up budgets
+   - Create recurring transactions (salary, bills)
+
+### Daily Usage
+
+**Adding Transaction:**
+1. Go to Transactions page
+2. Click "Add Transaction"
+3. Fill in details (amount, category, date)
+4. (Optional) Upload receipt/invoice
+5. Save
+
+**Checking Budget:**
+1. Go to Budget page
+2. View spending vs budget
+3. Check alerts for overspending
+4. Adjust budgets as needed
+
+**Viewing Analytics:**
+1. Go to Analytics page
+2. Toggle between Income/Expense
+3. View category breakdown
+4. Analyze spending trends
+
+### Email Notifications
+
+**Setup SMTP:**
+1. Go to Settings → Email Configuration
+2. Enter your SMTP details:
+   - Host: `smtp.gmail.com` (for Gmail)
+   - Port: `587` (TLS) or `465` (SSL)
+   - Username: Your email
+   - Password: App-specific password (recommended)
+3. Click "Send Test Email" to verify
+4. Save settings
+
+**Enable Budget Alerts:**
+1. Create a budget
+2. Budget alerts are auto-enabled at 80% and 100%
+3. You'll receive email when thresholds are reached
 
 ## 📁 Project Structure
 
 ```
 dashboard-app/
 ├── src/
-│   ├── app/
-│   │   ├── dashboard/
-│   │   │   ├── page.tsx              # Main dashboard
-│   │   │   ├── layout.tsx            # Dashboard layout with sidebar
-│   │   │   ├── income/               # Income management
-│   │   │   ├── expenses/             # Expense management
-│   │   │   ├── accounts/             # Bank accounts with sub-accounts
-│   │   │   ├── investments/          # Investment tracking
-│   │   │   ├── kpr/                  # KPR/Mortgage tracker
-│   │   │   ├── categories/           # Category management
-│   │   │   ├── transactions/         # All transactions view
-│   │   │   ├── reports/              # Reports & analytics
-│   │   │   ├── networth/             # Net worth tracker
-│   │   │   └── settings/             # App settings
-│   │   ├── login/                    # Authentication
-│   │   ├── layout.tsx                # Root layout
-│   │   └── globals.css               # Global styles & theme
-│   ├── components/
-│   │   ├── ui/                       # Shadcn UI components
-│   │   ├── loading-spinner.tsx       # Loading components
-│   │   ├── dark-mode-toggle.tsx      # Theme toggle
-│   │   └── dynamic-title.tsx         # Dynamic page title
-│   ├── contexts/
-│   │   └── LoadingContext.tsx        # Global loading state
-│   └── lib/
-│       └── supabase/
-│           └── client.ts             # Supabase client config
-├── migrations/
-│   └── FULL_SCHEMA.sql               # Complete database schema
-└── public/
+│   ├── app/                      # Next.js App Router
+│   │   ├── dashboard/           # Dashboard pages
+│   │   │   ├── page.tsx        # Main dashboard
+│   │   │   ├── transactions/   # Transactions CRUD
+│   │   │   ├── budget/         # Budget tracking
+│   │   │   ├── analytics/      # Analytics & charts
+│   │   │   ├── accounts/       # Accounts management
+│   │   │   ├── categories/     # Categories setup
+│   │   │   ├── recurring/      # Recurring transactions
+│   │   │   ├── import/         # CSV import
+│   │   │   ├── cashflow/       # Cash flow projection
+│   │   │   ├── settings/       # App settings
+│   │   │   └── ...
+│   │   ├── api/                # API routes
+│   │   │   ├── test-email/     # Test email endpoint
+│   │   │   └── send-budget-alert/  # Budget alert email
+│   │   ├── login/              # Authentication
+│   │   ├── layout.tsx          # Root layout
+│   │   └── page.tsx            # Landing page
+│   ├── components/             # React components
+│   │   ├── ui/                # Shadcn UI components
+│   │   ├── skeletons/         # Loading skeletons
+│   │   ├── toast-provider.tsx # Toast notifications
+│   │   └── ...
+│   ├── contexts/              # React contexts
+│   │   └── LoadingContext.tsx # Global loading state
+│   ├── lib/                   # Utilities
+│   │   ├── supabase/         # Supabase client
+│   │   ├── email.ts          # Email service
+│   │   └── utils.ts          # Helper functions
+│   └── types/                # TypeScript types
+├── public/                  # Static assets
+├── .env.local              # Environment variables (create this)
+├── migrations/               # Database migrations
+│   └── FULL_SCHEMA.sql         # Complete database schema
+├── package.json
+├── tsconfig.json
+└── README.md
 ```
 
-## 🚀 Getting Started
+## 🔒 Security
 
-### Prerequisites
-
-- Node.js 18+
-- npm or yarn
-- Supabase account
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd dashboard-app
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Setup environment variables**
-
-   Create `.env.local`:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-   ```
-
-4. **Run database migrations**
-
-   - Go to Supabase Dashboard > SQL Editor
-   - Copy content from `migrations/FULL_SCHEMA.sql`
-   - Paste and Execute
-   - Verify all tables are created
-
-5. **Start development server**
-   ```bash
-   npm run dev
-   ```
-
-6. **Open browser**
-   ```
-   http://localhost:3000
-   ```
-
-## 🗄️ Database Schema
-
-### Core Tables
-
-- **profiles** - User profiles and settings
-- **accounts** - Bank accounts with sub-account support
-- **transactions** - Income and expense records
-- **categories** - Customizable transaction categories
-- **investments** - Investment portfolio tracking
-- **kpr_tracking** - Mortgage/KPR tracking with bombing history
-- **app_settings** - User-specific app configuration
-
-### Key Features
-
-- **Row Level Security (RLS)** - All tables secured per user
-- **Foreign Keys** - Referential integrity maintained
-- **Soft Delete** - Account deactivation instead of deletion
-- **JSONB Support** - Flexible data structures (bombing_history)
-
-## ⚙️ Configuration
-
-### App Settings (via UI)
-
-Navigate to **Settings** page to configure:
-
-- **App Title** - Custom application name
-- **App Description** - Subtitle/description
-- **Default Currency** - IDR, USD, EUR, SGD, MYR
-- **Date Format** - DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD
-- **Number Format** - Indonesia, US, UK
-- **Fiscal Year Start** - Month when fiscal year begins
-
-### Dark Mode Theme
-
-Dark mode uses a sophisticated color scheme:
-- Background: `#0a0a0a`
-- Cards/Sidebar: `#191919`
-- Borders: `#3b3b3b`
-- Text: `#f2f2f2`
-- Muted: `#a3a3a3`
-
-Edit `src/app/globals.css` to customize colors.
-
-## 📊 Key Features Explained
-
-### Sub-Accounts (Wallets)
-
-Create virtual accounts under main bank accounts:
-- **Jago Pockets** - For Bank Jago users
-- **Jenius Flexy Saver** - For Jenius users
-- **Wallets** - General purpose
-- **Virtual Accounts** - For e-wallets
-
-### KPR Bombing Strategy
-
-Track mortgage with bombing (pelunasan dipercepat):
-- Monthly payment schedule (12-month projection)
-- Bombing calculator with 4% penalty
-- Interest saved calculation
-- Historical bombing records
-
-### Investment P&L
-
-Automatic profit/loss calculation:
-- Real-time P&L tracking
-- Multi-currency support (auto-convert to IDR)
-- Recalculate all investments feature
-- Filter by platform (Bibit, Binance, etc.)
-
-### Dynamic Categories
-
-Fully customizable categories:
-- 60+ icon options (emoji)
-- 8 color choices
-- Separate Income/Expense categories
-- Icons displayed in dropdowns
-
-### Global Loading
-
-Unified loading experience:
-- Full-screen overlay with backdrop blur
-- Custom loading text per page
-- Context-based state management
-- No flickering between routes
-
-## 🎨 Styling Guide
-
-### Using Semantic Colors
-
-Always use CSS variables instead of hardcoded colors:
-
-```tsx
-// ✅ Good
-<div className="bg-card text-card-foreground border border-border">
-
-// ❌ Bad
-<div className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-```
-
-### Available CSS Variables
-
-```css
---background      /* Page background */
---foreground      /* Primary text */
---card           /* Card background */
---card-foreground /* Card text */
---border         /* Border color */
---input          /* Input border */
---muted          /* Muted backgrounds */
---muted-foreground /* Secondary text */
---accent         /* Accent backgrounds */
---primary        /* Primary color */
---destructive    /* Error/delete color */
-```
-
-## 🔐 Security
-
-- **Row Level Security (RLS)** - Enabled on all tables
-- **User Isolation** - Each user only sees their own data
-- **Auth Policies** - Supabase Auth integration
-- **SQL Injection Protection** - Parameterized queries
-- **XSS Protection** - React built-in sanitization
-
-## 📱 Responsive Design
-
-- **Mobile First** - Optimized for small screens
-- **Sidebar** - Collapsible on mobile
-- **Tables** - Horizontal scroll on mobile
-- **Forms** - Full-width on mobile
-- **Charts** - Responsive sizing
+- **Row Level Security (RLS)** - All database tables have RLS policies
+- **Authentication** - Supabase Auth with JWT tokens
+- **SMTP Credentials** - Stored securely in database (encrypted recommended)
+- **Service Role Key** - Never expose in client-side code
+- **File Upload** - Size limits and type validation
+- **XSS Protection** - React automatically escapes content
 
 ## 🐛 Troubleshooting
 
-### Dark Mode Not Working
+### Common Issues
 
-1. Hard refresh browser: `Ctrl + Shift + R`
-2. Check browser console for errors
-3. Verify theme toggle is working
-4. Clear browser cache
+**"Unauthorized" error when testing email:**
+- Make sure you're logged in
+- Check if SMTP credentials are correct
+- Verify SMTP port (587 for TLS, 465 for SSL)
 
-### Database Errors
+**Transactions not showing:**
+- Check if you selected correct date range
+- Verify RLS policies are set up correctly
+- Check browser console for errors
 
-1. Check RLS policies are created
-2. Verify user is authenticated
-3. Check Supabase logs in dashboard
-4. Run migrations again if needed
+**Budget alerts not sending:**
+- Verify SMTP is configured (Settings → Email Configuration)
+- Check if budget alert is enabled
+- Ensure you have `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`
 
-### Title Not Updating
+**Import CSV failed:**
+- Check CSV format matches template
+- Verify all required columns exist
+- Check for invalid data (negative amounts, wrong dates)
 
-1. Check `app_settings` table exists
-2. Verify settings saved in Settings page
-3. Hard refresh browser
-4. Check console for DynamicTitle logs
+### Getting Help
 
-## 🚢 Deployment
+1. Check browser console for errors (F12)
+2. Check terminal/server logs
+3. Verify Supabase Dashboard for database errors
+4. Review RLS policies in Supabase
 
-### Vercel (Recommended)
+## 📝 Database Schema
 
-1. Push code to GitHub
-2. Import project in Vercel
-3. Add environment variables
-4. Deploy
+The complete database schema includes:
 
-### Other Platforms
+**Tables:**
+- `profiles` - User profiles
+- `app_settings` - Per-user app settings (including SMTP)
+- `accounts` - Bank accounts with sub-accounts
+- `categories` - Income/expense categories
+- `transactions` - All financial transactions
+- `transaction_attachments` - File attachments for transactions
+- `recurring_transactions` - Templates for recurring transactions
+- `budgets` - Budget limits per category
+- `budget_alerts` - Alert configurations
+- `alert_notifications` - Notification log
+- `investments` - Investment portfolios
+- `kpr` - Mortgage/KPR tracking
+- `kpr_payments` - Payment schedules
 
-Ensure environment variables are set:
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+**Key Features:**
+- Auto-update account balance on transaction changes (triggers)
+- Row Level Security on all tables
+- Indexes for performance
+- Foreign key constraints
+- Default categories (Income & Expense)
 
-## 📝 Contributing
+See `migrations/FULL_SCHEMA.sql` for complete schema.
 
-1. Create feature branch
-2. Make changes
-3. Test thoroughly
-4. Submit pull request
+## 🎨 Customization
 
-## 🔄 Migrations Guide
+### Adding New Category
 
-All database migrations are in `migrations/FULL_SCHEMA.sql`.
+```sql
+INSERT INTO categories (name, type, icon, color)
+VALUES ('Subscription', 'expense', '📱', '#f59e0b');
+```
 
-To apply:
-1. Open Supabase SQL Editor
-2. Copy entire file content
-3. Execute
-4. Verify tables created
+### Changing Theme Colors
+
+Edit `tailwind.config.ts` and update color variables in `app/globals.css`.
+
+### Adding New Page
+
+1. Create new folder in `src/app/dashboard/your-page/`
+2. Add `page.tsx` with your component
+3. Update navigation in `src/app/dashboard/layout.tsx`
+
+## 🤝 Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Open Pull Request
 
 ## 📄 License
 
-MIT License - Feel free to use for personal or commercial projects.
+This project is licensed under the MIT License.
 
-## 🤝 Support
+## 🙏 Acknowledgments
 
-For issues or questions:
-1. Check this README
-2. Review code comments
-3. Check Supabase logs
-4. Create GitHub issue
+- [Next.js](https://nextjs.org/)
+- [Supabase](https://supabase.com/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [Radix UI](https://www.radix-ui.com/)
+- [Recharts](https://recharts.org/)
+- [shadcn/ui](https://ui.shadcn.com/)
 
-## 🎯 Roadmap
+## 📧 Contact
 
-- [ ] Budget planning & forecasting
-- [ ] Recurring transactions
-- [ ] Multi-currency support improvements
-- [ ] Advanced charts & analytics
-- [ ] Mobile app (React Native)
-- [ ] Export to PDF
-- [ ] Email notifications
-- [ ] Shared accounts (family mode)
+For questions or support, please open an issue on GitHub.
 
 ---
 
-**Built with ❤️ for family financial freedom 🚀**
+**Made with ❤️ using Next.js and Supabase**

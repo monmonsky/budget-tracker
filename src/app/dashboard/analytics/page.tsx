@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { TrendingUp, TrendingDown, Calendar, PieChart } from 'lucide-react'
@@ -29,6 +30,7 @@ export default function AnalyticsPage() {
   const { setLoading, setLoadingText } = useLoading()
   const { theme } = useTheme()
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'))
+  const [transactionType, setTransactionType] = useState<'income' | 'expense'>('expense')
   const [categorySpending, setCategorySpending] = useState<CategorySpending[]>([])
   const [monthlyTrends, setMonthlyTrends] = useState<MonthlyTrend[]>([])
   const [totalExpenses, setTotalExpenses] = useState(0)
@@ -36,7 +38,7 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     fetchAnalytics()
-  }, [selectedMonth])
+  }, [selectedMonth, transactionType])
 
   const fetchAnalytics = async () => {
     setLoadingText('Loading analytics...')
@@ -61,12 +63,12 @@ export default function AnalyticsPage() {
     const monthStart = format(startOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd')
     const monthEnd = format(endOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd')
 
-    // Fetch expenses by category
+    // Fetch transactions by category (income or expense)
     const { data: transactions } = await supabase
       .from('transactions')
       .select('category, amount')
       .eq('user_id', userId)
-      .eq('type', 'expense')
+      .eq('type', transactionType)
       .gte('date', monthStart)
       .lte('date', monthEnd)
 
@@ -74,7 +76,7 @@ export default function AnalyticsPage() {
     const { data: categories } = await supabase
       .from('categories')
       .select('name, icon, color')
-      .eq('type', 'expense')
+      .eq('type', transactionType)
 
     const categoryMap = new Map(categories?.map(c => [c.name, { icon: c.icon, color: c.color }]) || [])
 
@@ -120,7 +122,7 @@ export default function AnalyticsPage() {
         .from('transactions')
         .select('category, amount')
         .eq('user_id', userId)
-        .eq('type', 'expense')
+        .eq('type', transactionType)
         .gte('date', monthStart)
         .lte('date', monthEnd)
 
@@ -212,16 +214,39 @@ export default function AnalyticsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Category Analytics</h1>
-          <p className="text-muted-foreground">Analyze your spending patterns by category</p>
+          <p className="text-muted-foreground">
+            Analyze your {transactionType === 'income' ? 'income sources' : 'spending patterns'} by category
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
-          <input
-            type="month"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="px-3 py-2 rounded-md bg-background border border-border text-foreground"
-          />
+        <div className="flex items-center gap-4">
+          {/* Income/Expense Toggle */}
+          <div className="flex gap-2 bg-muted p-1 rounded-lg">
+            <Button
+              variant={transactionType === 'expense' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setTransactionType('expense')}
+            >
+              Expenses
+            </Button>
+            <Button
+              variant={transactionType === 'income' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setTransactionType('income')}
+            >
+              Income
+            </Button>
+          </div>
+
+          {/* Month Selector */}
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="px-3 py-2 rounded-md bg-background border border-border text-foreground"
+            />
+          </div>
         </div>
       </div>
 
@@ -229,15 +254,21 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-4 bg-card border-border">
           <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">Total Expenses</p>
-            <p className="text-2xl font-bold text-red-600">{formatCurrency(totalExpenses)}</p>
+            <p className="text-sm text-muted-foreground">
+              Total {transactionType === 'income' ? 'Income' : 'Expenses'}
+            </p>
+            <p className={`text-2xl font-bold ${transactionType === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+              {formatCurrency(totalExpenses)}
+            </p>
           </div>
         </Card>
         <Card className="p-4 bg-card border-border">
           <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">Top Category</p>
+            <p className="text-sm text-muted-foreground">
+              Top {transactionType === 'income' ? 'Source' : 'Category'}
+            </p>
             <div className="flex items-center gap-2">
-              {topCategory && (
+              {topCategory ? (
                 <>
                   <span className="text-2xl">{topCategory.icon}</span>
                   <div>
@@ -245,6 +276,8 @@ export default function AnalyticsPage() {
                     <p className="text-sm text-muted-foreground">{topCategory.percentage.toFixed(1)}%</p>
                   </div>
                 </>
+              ) : (
+                <p className="text-sm text-muted-foreground">No data</p>
               )}
             </div>
           </div>
@@ -260,11 +293,15 @@ export default function AnalyticsPage() {
 
       {/* Pie Chart */}
       <Card className="p-6 bg-card border-border">
-        <h2 className="text-xl font-semibold text-foreground mb-4">Spending Distribution</h2>
+        <h2 className="text-xl font-semibold text-foreground mb-4">
+          {transactionType === 'income' ? 'Income' : 'Spending'} Distribution
+        </h2>
         {categorySpending.length === 0 ? (
           <div className="text-center py-12">
             <PieChart className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">No expenses recorded for this month</p>
+            <p className="text-muted-foreground">
+              No {transactionType} recorded for this month
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

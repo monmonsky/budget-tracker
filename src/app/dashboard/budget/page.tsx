@@ -121,6 +121,52 @@ export default function BudgetPage() {
     }
   }
 
+  const checkAndSendAlert = async (budgetActual: BudgetActual, budgetList: Budget[], userId: string) => {
+    try {
+      const budget = budgetList.find(b => b.category_id === budgetActual.category_id)
+      if (!budget) return
+
+      // Check if alert is enabled for this budget
+      const { data: alertConfig } = await supabase
+        .from('budget_alerts')
+        .select('*')
+        .eq('budget_id', budget.id)
+        .eq('is_enabled', true)
+        .single()
+
+      if (!alertConfig) return
+
+      // Determine if we should send an alert
+      const shouldAlert =
+        (budgetActual.percentage >= 100 && alertConfig.threshold_percentage <= 100) ||
+        (budgetActual.percentage >= 80 && budgetActual.percentage < 100 && alertConfig.threshold_percentage <= 80)
+
+      if (!shouldAlert) return
+
+      // Call API to send alert email
+      const response = await fetch('/api/send-budget-alert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          budgetId: budget.id,
+          categoryName: budgetActual.category_name,
+          budgetAmount: budgetActual.budget_amount,
+          spentAmount: budgetActual.actual_amount,
+          percentage: budgetActual.percentage,
+          month: format(new Date(selectedMonth), 'MMMM yyyy'),
+          userId: userId,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        console.error('Error sending alert:', error)
+      }
+    } catch (error) {
+      console.error('Error checking/sending alert:', error)
+    }
+  }
+
   const calculateBudgetActuals = async (userId: string, budgetList: Budget[]) => {
     try {
       const monthStart = format(startOfMonth(new Date(selectedMonth)), 'yyyy-MM-dd')
@@ -183,6 +229,13 @@ export default function BudgetPage() {
       })
 
       setBudgetActuals(comparisons)
+
+      // Check for budget alerts (80% and 100%)
+      for (const comparison of comparisons) {
+        if (comparison.percentage >= 80) {
+          await checkAndSendAlert(comparison, budgetList, userId)
+        }
+      }
     } catch (error) {
       console.error('Error calculating budget actuals:', error)
     }

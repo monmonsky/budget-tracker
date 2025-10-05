@@ -9,8 +9,9 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { Settings, Save, RotateCcw } from 'lucide-react'
+import { Settings, Save, RotateCcw, Mail, Send } from 'lucide-react'
 import { useLoading } from '@/contexts/LoadingContext'
+import { toast } from 'sonner'
 
 interface AppSettings {
   id?: string
@@ -20,6 +21,11 @@ interface AppSettings {
   date_format: string
   number_format: string
   fiscal_year_start: number
+  smtp_host?: string
+  smtp_port?: number
+  smtp_user?: string
+  smtp_pass?: string
+  smtp_from?: string
 }
 
 export default function SettingsPage() {
@@ -31,8 +37,14 @@ export default function SettingsPage() {
     date_format: 'dd/MM/yyyy',
     number_format: 'id-ID',
     fiscal_year_start: 1,
+    smtp_host: '',
+    smtp_port: 587,
+    smtp_user: '',
+    smtp_pass: '',
+    smtp_from: '',
   })
   const [hasChanges, setHasChanges] = useState(false)
+  const [testingEmail, setTestingEmail] = useState(false)
 
   useEffect(() => {
     fetchSettings()
@@ -86,6 +98,11 @@ export default function SettingsPage() {
         date_format: settings.date_format,
         number_format: settings.number_format,
         fiscal_year_start: settings.fiscal_year_start,
+        smtp_host: settings.smtp_host || null,
+        smtp_port: settings.smtp_port || 587,
+        smtp_user: settings.smtp_user || null,
+        smtp_pass: settings.smtp_pass || null,
+        smtp_from: settings.smtp_from || null,
         updated_at: new Date().toISOString(),
       }
 
@@ -127,12 +144,59 @@ export default function SettingsPage() {
       console.log('[Settings] Dispatching settings-updated event')
       window.dispatchEvent(new Event('settings-updated'))
 
-      alert('Settings saved successfully!')
+      toast.success('Settings saved successfully!', {
+        description: 'Your preferences have been updated.',
+      })
     } catch (error: any) {
       console.error('[Settings] Error saving settings:', error)
-      alert(`Failed to save settings: ${error.message}`)
+      toast.error('Failed to save settings', {
+        description: error.message,
+      })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleTestEmail = async () => {
+    if (!settings.smtp_host || !settings.smtp_user) {
+      toast.error('SMTP Configuration Required', {
+        description: 'Please fill in SMTP host and user before testing.',
+      })
+      return
+    }
+
+    setTestingEmail(true)
+
+    try {
+      const response = await fetch('/api/test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          smtp_host: settings.smtp_host,
+          smtp_port: settings.smtp_port || 587,
+          smtp_user: settings.smtp_user,
+          smtp_pass: settings.smtp_pass,
+          smtp_from: settings.smtp_from || settings.smtp_user,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        toast.success('Test email sent successfully!', {
+          description: `Check your inbox at ${settings.smtp_user}`,
+        })
+      } else {
+        toast.error('Email test failed', {
+          description: result.error || 'Unable to send test email',
+        })
+      }
+    } catch (error: any) {
+      toast.error('Email test failed', {
+        description: error.message,
+      })
+    } finally {
+      setTestingEmail(false)
     }
   }
 
@@ -224,6 +288,95 @@ export default function SettingsPage() {
             />
             <p className="text-sm text-gray-500">Brief description of your budget tracker</p>
           </div>
+        </div>
+      </Card>
+
+      {/* Email/SMTP Settings */}
+      <Card className="p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Mail className="h-5 w-5" />
+          <h2 className="text-xl font-bold">Email Configuration (SMTP)</h2>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          Configure SMTP settings for budget alert notifications
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="smtp_host">SMTP Host</Label>
+            <Input
+              id="smtp_host"
+              value={settings.smtp_host || ''}
+              onChange={(e) => handleChange('smtp_host', e.target.value)}
+              placeholder="smtp.gmail.com"
+            />
+            <p className="text-sm text-gray-500">Your email provider's SMTP server</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="smtp_port">SMTP Port</Label>
+            <Input
+              id="smtp_port"
+              type="number"
+              value={settings.smtp_port || 587}
+              onChange={(e) => handleChange('smtp_port', parseInt(e.target.value))}
+              placeholder="587"
+            />
+            <p className="text-sm text-gray-500">Usually 587 (TLS) or 465 (SSL)</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="smtp_user">SMTP Username</Label>
+            <Input
+              id="smtp_user"
+              value={settings.smtp_user || ''}
+              onChange={(e) => handleChange('smtp_user', e.target.value)}
+              placeholder="your-email@example.com"
+            />
+            <p className="text-sm text-gray-500">Email address for authentication</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="smtp_pass">SMTP Password</Label>
+            <Input
+              id="smtp_pass"
+              type="password"
+              value={settings.smtp_pass || ''}
+              onChange={(e) => handleChange('smtp_pass', e.target.value)}
+              placeholder="••••••••"
+            />
+            <p className="text-sm text-gray-500">App password or account password</p>
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="smtp_from">From Address</Label>
+            <Input
+              id="smtp_from"
+              value={settings.smtp_from || ''}
+              onChange={(e) => handleChange('smtp_from', e.target.value)}
+              placeholder="Budget Tracker <noreply@example.com>"
+            />
+            <p className="text-sm text-gray-500">Name and email to show in "From" field</p>
+          </div>
+        </div>
+
+        <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 rounded-lg">
+          <p className="text-sm text-yellow-800 dark:text-yellow-200">
+            ⚠️ <strong>Security Note:</strong> SMTP credentials are stored in the database.
+            For better security, use app-specific passwords instead of your main account password.
+          </p>
+        </div>
+
+        <div className="mt-4">
+          <Button
+            onClick={handleTestEmail}
+            disabled={testingEmail || !settings.smtp_host || !settings.smtp_user}
+            variant="outline"
+            className="gap-2"
+          >
+            <Send className="h-4 w-4" />
+            {testingEmail ? 'Sending Test Email...' : 'Send Test Email'}
+          </Button>
         </div>
       </Card>
 

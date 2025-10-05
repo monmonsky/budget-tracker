@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { DarkModeToggle } from '@/components/dark-mode-toggle'
 import { FullPageLoader } from '@/components/loading-spinner'
+import { BudgetAlertsBell } from '@/components/budget-alerts-bell'
 import {
   Home,
   TrendingUp,
@@ -270,7 +271,18 @@ export default function DashboardLayout({
           <h1 className="text-xl font-bold text-foreground">
             {appSettings?.app_title || '💰 Budget'}
           </h1>
-          <DarkModeToggle />
+          <div className="flex items-center gap-2">
+            <BudgetAlertsBell />
+            <DarkModeToggle />
+          </div>
+        </header>
+
+        {/* Desktop header with alerts */}
+        <header className="hidden lg:flex bg-background border-b border-border p-4 items-center justify-end sticky top-0 z-30">
+          <div className="flex items-center gap-2">
+            <BudgetAlertsBell />
+            <DarkModeToggle />
+          </div>
         </header>
 
         {/* Page content */}

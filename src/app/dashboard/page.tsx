@@ -19,6 +19,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useLoading } from '@/contexts/LoadingContext'
+import { DashboardSkeleton } from '@/components/skeletons/card-skeleton'
 
 interface DashboardStats {
   totalBalance: number
@@ -52,6 +53,7 @@ interface RecurringTransaction {
 
 export default function DashboardPage() {
   const { setLoading, setLoadingText } = useLoading()
+  const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [stats, setStats] = useState<DashboardStats>({
     totalBalance: 0,
     monthlyIncome: 0,
@@ -65,9 +67,15 @@ export default function DashboardPage() {
   const [upcomingRecurring, setUpcomingRecurring] = useState<RecurringTransaction[]>([])
 
   useEffect(() => {
-    fetchDashboardStats()
-    fetchRecentTransactions()
-    fetchUpcomingRecurring()
+    const loadInitialData = async () => {
+      await Promise.all([
+        fetchDashboardStats(),
+        fetchRecentTransactions(),
+        fetchUpcomingRecurring()
+      ])
+      setIsInitialLoading(false)
+    }
+    loadInitialData()
   }, [])
 
   useEffect(() => {
@@ -290,6 +298,10 @@ export default function DashboardPage() {
       bgColor: 'bg-indigo-50',
     },
   ]
+
+  if (isInitialLoading) {
+    return <DashboardSkeleton />
+  }
 
   return (
     <div className="space-y-6">
