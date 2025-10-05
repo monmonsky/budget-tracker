@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge'
 import { Plus, Trash2, Edit2, X, Tag } from 'lucide-react'
 import { LoadingSpinner } from '@/components/loading-spinner'
+import { toast } from 'sonner'
 
 interface Category {
   id: string
@@ -87,7 +88,9 @@ export default function CategoriesPage() {
     e.preventDefault()
 
     if (!formData.name.trim()) {
-      alert('Please enter category name')
+      toast.error('Validation error', {
+        description: 'Please enter category name',
+      })
       return
     }
 
@@ -105,6 +108,10 @@ export default function CategoriesPage() {
           .eq('id', editingId)
 
         if (error) throw error
+
+        toast.success('Category updated successfully!', {
+          description: 'Your category has been updated.',
+        })
       } else {
         // Create new category
         const { error } = await supabase
@@ -117,6 +124,10 @@ export default function CategoriesPage() {
           })
 
         if (error) throw error
+
+        toast.success('Category created successfully!', {
+          description: 'Your new category has been added.',
+        })
       }
 
       // Reset form
@@ -131,7 +142,9 @@ export default function CategoriesPage() {
       fetchCategories()
     } catch (error: any) {
       console.error('Error saving category:', error)
-      alert(error.message || 'Error saving category')
+      toast.error('Failed to save category', {
+        description: error.message || 'An unexpected error occurred',
+      })
     }
   }
 
@@ -157,10 +170,16 @@ export default function CategoriesPage() {
 
       if (error) throw error
 
+      toast.success('Category deleted successfully!', {
+        description: 'The category has been removed.',
+      })
+
       fetchCategories()
     } catch (error: any) {
       console.error('Error deleting category:', error)
-      alert(error.message || 'Error deleting category. It may be used in transactions.')
+      toast.error('Failed to delete category', {
+        description: error.message || 'It may be used in transactions.',
+      })
     }
   }
 

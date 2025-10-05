@@ -119,6 +119,30 @@ CREATE TABLE investment_transactions (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Recurring transactions table
+CREATE TABLE recurring_transactions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  template_name TEXT NOT NULL,
+  account_id UUID REFERENCES accounts(id) ON DELETE CASCADE,
+  amount DECIMAL(15, 2) NOT NULL,
+  type TEXT CHECK (type IN ('income', 'expense')) NOT NULL,
+  category TEXT NOT NULL,
+  subcategory TEXT,
+  description TEXT,
+  merchant TEXT,
+  frequency TEXT CHECK (frequency IN ('daily', 'weekly', 'monthly', 'yearly', 'custom')) NOT NULL,
+  custom_interval_days INTEGER,
+  start_date DATE NOT NULL,
+  end_date DATE,
+  next_occurrence DATE NOT NULL,
+  last_generated DATE,
+  is_active BOOLEAN DEFAULT TRUE,
+  auto_create BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- KPR tracking table
 CREATE TABLE kpr_tracking (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -179,6 +203,9 @@ CREATE INDEX idx_accounts_user_id ON accounts(user_id);
 CREATE INDEX idx_investments_user_id ON investments(user_id);
 CREATE INDEX idx_net_worth_user_date ON net_worth_snapshots(user_id, snapshot_date);
 CREATE INDEX idx_app_settings_user_id ON app_settings(user_id);
+CREATE INDEX idx_recurring_user_id ON recurring_transactions(user_id);
+CREATE INDEX idx_recurring_next_occurrence ON recurring_transactions(next_occurrence);
+CREATE INDEX idx_recurring_active ON recurring_transactions(is_active);
 
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
@@ -192,6 +219,7 @@ ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE budgets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE investments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE investment_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE recurring_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kpr_tracking ENABLE ROW LEVEL SECURITY;
 ALTER TABLE net_worth_snapshots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
@@ -249,6 +277,9 @@ CREATE POLICY "Users can insert own budgets" ON budgets
 CREATE POLICY "Users can update own budgets" ON budgets
   FOR UPDATE USING (auth.uid() = user_id);
 
+CREATE POLICY "Users can delete own budgets" ON budgets
+  FOR DELETE USING (auth.uid() = user_id);
+
 -- Investments policies (household access)
 CREATE POLICY "Users can view all household investments" ON investments
   FOR SELECT USING (TRUE);
@@ -262,6 +293,19 @@ CREATE POLICY "Users can update investments" ON investments
 -- Investment transactions policies (household access)
 CREATE POLICY "Users can view all household investment transactions" ON investment_transactions
   FOR SELECT USING (TRUE);
+
+-- Recurring transactions policies (household access)
+CREATE POLICY "Users can view all household recurring transactions" ON recurring_transactions
+  FOR SELECT USING (TRUE);
+
+CREATE POLICY "Users can insert recurring transactions" ON recurring_transactions
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update recurring transactions" ON recurring_transactions
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete recurring transactions" ON recurring_transactions
+  FOR DELETE USING (auth.uid() = user_id);
 
 -- KPR tracking policies (own data only)
 CREATE POLICY "Users can view own KPR" ON kpr_tracking
@@ -325,6 +369,9 @@ CREATE TRIGGER update_budgets_updated_at BEFORE UPDATE ON budgets
 CREATE TRIGGER update_investments_updated_at BEFORE UPDATE ON investments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_recurring_transactions_updated_at BEFORE UPDATE ON recurring_transactions
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 CREATE TRIGGER update_kpr_tracking_updated_at BEFORE UPDATE ON kpr_tracking
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -364,6 +411,7 @@ COMMENT ON TABLE transactions IS 'All financial transactions (income, expense, t
 COMMENT ON TABLE budgets IS 'Budget allocations by category and time period';
 COMMENT ON TABLE investments IS 'Investment portfolios with P&L tracking';
 COMMENT ON TABLE investment_transactions IS 'Individual investment transactions (buy, sell, dividend, fee)';
+COMMENT ON TABLE recurring_transactions IS 'Recurring transaction templates (auto-generate monthly/weekly/yearly transactions)';
 COMMENT ON TABLE kpr_tracking IS 'Mortgage (KPR) tracking with bombing history';
 COMMENT ON TABLE net_worth_snapshots IS 'Historical net worth snapshots';
 COMMENT ON TABLE app_settings IS 'Application settings and preferences for each user';

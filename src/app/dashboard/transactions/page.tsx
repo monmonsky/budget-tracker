@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Filter, Download, Trash2, Edit2, Calendar } from 'lucide-react'
 import { format } from 'date-fns'
 import { useLoading } from '@/contexts/LoadingContext'
+import { toast } from 'sonner'
 
 interface Transaction {
   id: string
@@ -126,17 +127,24 @@ export default function TransactionsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this transaction?')) return
 
-    const { error } = await supabase
-      .from('transactions')
-      .delete()
-      .eq('id', id)
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', id)
 
-    if (error) {
-      alert('Error deleting transaction')
-      return
+      if (error) throw error
+
+      toast.success('Transaction deleted successfully!', {
+        description: 'The transaction has been removed.',
+      })
+
+      fetchData()
+    } catch (error) {
+      toast.error('Failed to delete transaction', {
+        description: (error as any).message || 'An unexpected error occurred',
+      })
     }
-
-    fetchData()
   }
 
   const exportToCSV = () => {

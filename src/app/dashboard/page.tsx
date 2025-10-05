@@ -12,7 +12,9 @@ import {
   Building2,
   BarChart3,
   Trash2,
-  Filter
+  Filter,
+  RefreshCw,
+  Play
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -37,6 +39,17 @@ interface Transaction {
   account_name: string
 }
 
+interface RecurringTransaction {
+  id: string
+  template_name: string
+  amount: number
+  type: 'income' | 'expense'
+  category: string
+  frequency: string
+  next_occurrence: string
+  is_active: boolean
+}
+
 export default function DashboardPage() {
   const { setLoading, setLoadingText } = useLoading()
   const [stats, setStats] = useState<DashboardStats>({
@@ -49,10 +62,12 @@ export default function DashboardPage() {
   })
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [transactionFilter, setTransactionFilter] = useState<'all' | 'income' | 'expense'>('all')
+  const [upcomingRecurring, setUpcomingRecurring] = useState<RecurringTransaction[]>([])
 
   useEffect(() => {
     fetchDashboardStats()
     fetchRecentTransactions()
+    fetchUpcomingRecurring()
   }, [])
 
   useEffect(() => {
@@ -178,6 +193,30 @@ export default function DashboardPage() {
       setTransactions(formattedTransactions)
     } catch (error) {
       console.error('Error fetching transactions:', error)
+    }
+  }
+
+  const fetchUpcomingRecurring = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Get next 7 days of recurring transactions
+      const today = new Date()
+      const next7Days = new Date()
+      next7Days.setDate(today.getDate() + 7)
+
+      const { data } = await supabase
+        .from('recurring_transactions')
+        .select('id, template_name, amount, type, category, frequency, next_occurrence, is_active')
+        .eq('is_active', true)
+        .lte('next_occurrence', next7Days.toISOString().split('T')[0])
+        .order('next_occurrence', { ascending: true })
+        .limit(5)
+
+      setUpcomingRecurring(data || [])
+    } catch (error) {
+      console.error('Error fetching upcoming recurring:', error)
     }
   }
 
@@ -338,6 +377,47 @@ export default function DashboardPage() {
           </div>
         </div>
       </Card>
+
+      {/* Upcoming Recurring Transactions */}
+      {upcomingRecurring.length > 0 && (
+        <Card className="p-6 bg-card border-border">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-bold text-foreground">Upcoming Recurring (Next 7 Days)</h2>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => window.location.href = '/dashboard/recurring'}>
+              View All
+            </Button>
+          </div>
+          <div className="space-y-3">
+            {upcomingRecurring.map((recurring) => (
+              <div key={recurring.id} className="flex items-center justify-between p-3 bg-secondary/20 rounded-lg border border-border">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-foreground">{recurring.template_name}</p>
+                    <Badge variant={recurring.type === 'income' ? 'default' : 'destructive'}>
+                      {recurring.type}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+                    <span>{new Date(recurring.next_occurrence).toLocaleDateString('id-ID')}</span>
+                    <span>•</span>
+                    <span>{recurring.category}</span>
+                    <span>•</span>
+                    <span className="capitalize">{recurring.frequency}</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={`font-bold ${recurring.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                    {recurring.type === 'income' ? '+' : '-'} {formatCurrency(recurring.amount)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Recent Transactions */}
       <Card className="p-6">

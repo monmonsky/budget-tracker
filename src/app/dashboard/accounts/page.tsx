@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Plus, X, Wallet, Loader2, FolderPlus } from 'lucide-react'
 import { useLoading } from '@/contexts/LoadingContext'
+import { toast } from 'sonner'
 
 interface Account {
   id: string
@@ -74,7 +75,9 @@ export default function AccountsPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        alert('You must be logged in to add an account')
+        toast.error('Authentication required', {
+          description: 'You must be logged in to add an account',
+        })
         setSubmitting(false)
         return
       }
@@ -98,12 +101,18 @@ export default function AccountsPage() {
 
       if (error) {
         console.error('Supabase error:', error)
-        alert(`Failed to add account: ${error.message}`)
+        toast.error('Failed to add account', {
+          description: error.message || 'An unexpected error occurred',
+        })
         setSubmitting(false)
         return
       }
 
       console.log('Account added successfully:', data)
+
+      toast.success('Account created successfully!', {
+        description: 'Your new account has been added.',
+      })
 
       // Reset form
       setFormData({
@@ -125,7 +134,9 @@ export default function AccountsPage() {
       fetchAccounts()
     } catch (error: any) {
       console.error('Error adding account:', error)
-      alert(`Failed to add account: ${error?.message || 'Unknown error'}`)
+      toast.error('Failed to add account', {
+        description: error?.message || 'Unknown error',
+      })
       setSubmitting(false)
     }
   }

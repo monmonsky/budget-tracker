@@ -3,6 +3,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { LoadingProvider } from "@/contexts/LoadingContext";
 import { DynamicTitle } from "@/components/dynamic-title";
+import { ToastProvider } from "@/components/toast-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,6 +33,7 @@ export default function RootLayout({
         >
           <LoadingProvider>
             <DynamicTitle />
+            <ToastProvider />
             {children}
           </LoadingProvider>
         </ThemeProvider>

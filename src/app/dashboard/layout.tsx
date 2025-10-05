@@ -21,7 +21,12 @@ import {
   Receipt,
   Tag,
   FileText,
-  Settings
+  Settings,
+  RefreshCw,
+  Target,
+  LineChart,
+  Upload,
+  PieChart
 } from 'lucide-react'
 
 export default function DashboardLayout({
@@ -110,6 +115,7 @@ export default function DashboardLayout({
       title: 'Overview',
       items: [
         { name: 'Dashboard', href: '/dashboard', icon: Home },
+        { name: 'Analytics', href: '/dashboard/analytics', icon: PieChart },
         { name: 'Reports', href: '/dashboard/reports', icon: FileText },
         { name: 'Net Worth', href: '/dashboard/networth', icon: BarChart3 },
       ]
@@ -120,7 +126,16 @@ export default function DashboardLayout({
         { name: 'All Transactions', href: '/dashboard/transactions', icon: Receipt },
         { name: 'Income', href: '/dashboard/income', icon: TrendingUp },
         { name: 'Expenses', href: '/dashboard/expenses', icon: TrendingDown },
+        { name: 'Recurring', href: '/dashboard/recurring', icon: RefreshCw },
+        { name: 'Import CSV', href: '/dashboard/import', icon: Upload },
         { name: 'Categories', href: '/dashboard/categories', icon: Tag },
+      ]
+    },
+    {
+      title: 'Planning',
+      items: [
+        { name: 'Budget', href: '/dashboard/budget', icon: Target },
+        { name: 'Cash Flow', href: '/dashboard/cashflow', icon: LineChart },
       ]
     },
     {
