@@ -9,12 +9,15 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Filter, Download, Trash2, Edit2, Calendar, Plus, Eye, Paperclip } from 'lucide-react'
-import { format } from 'date-fns'
+import { Filter, Download, Trash2, Edit2, Calendar, Plus, Eye, Paperclip, Search, X, FileDown, FileSpreadsheet } from 'lucide-react'
+import { format, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns'
 import { useLoading } from '@/contexts/LoadingContext'
 import { toast } from 'sonner'
 import { AddTransactionModal } from '@/components/add-transaction-modal'
 import { TransactionDetailModal } from '@/components/transaction-detail-modal'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import * as XLSX from 'xlsx'
 
 interface Transaction {
   id: string
@@ -47,6 +50,9 @@ export default function TransactionsPage() {
   const [filterAccount, setFilterAccount] = useState<string>('all')
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterAmountMin, setFilterAmountMin] = useState('')
+  const [filterAmountMax, setFilterAmountMax] = useState('')
   const [categories, setCategories] = useState<string[]>([])
 
   // Pagination
@@ -55,8 +61,13 @@ export default function TransactionsPage() {
   const itemsPerPage = 20
 
   useEffect(() => {
-    fetchData()
-  }, [filterType, filterCategory, filterAccount, filterDateFrom, filterDateTo, currentPage])
+    // Debounce search query
+    const timer = setTimeout(() => {
+      fetchData()
+    }, searchQuery ? 500 : 0) // 500ms debounce for search
+
+    return () => clearTimeout(timer)
+  }, [filterType, filterCategory, filterAccount, filterDateFrom, filterDateTo, searchQuery, filterAmountMin, filterAmountMax, currentPage])
 
   const fetchData = async () => {
     setLoadingText('Loading transactions...')
@@ -99,6 +110,20 @@ export default function TransactionsPage() {
 
       if (filterDateTo) {
         baseQuery = baseQuery.lte('date', filterDateTo)
+      }
+
+      // Search by description or merchant
+      if (searchQuery) {
+        baseQuery = baseQuery.or(`description.ilike.%${searchQuery}%,merchant.ilike.%${searchQuery}%`)
+      }
+
+      // Amount range filter
+      if (filterAmountMin) {
+        baseQuery = baseQuery.gte('amount', parseFloat(filterAmountMin))
+      }
+
+      if (filterAmountMax) {
+        baseQuery = baseQuery.lte('amount', parseFloat(filterAmountMax))
       }
 
       // Apply pagination
@@ -195,6 +220,52 @@ export default function TransactionsPage() {
     }
   }
 
+  const clearAllFilters = () => {
+    setFilterType('all')
+    setFilterCategory('all')
+    setFilterAccount('all')
+    setFilterDateFrom('')
+    setFilterDateTo('')
+    setSearchQuery('')
+    setFilterAmountMin('')
+    setFilterAmountMax('')
+    setCurrentPage(1)
+  }
+
+  const applyQuickFilter = (filter: 'today' | 'yesterday' | 'thisWeek' | 'thisMonth' | 'last30Days' | 'thisYear') => {
+    const today = new Date()
+
+    switch (filter) {
+      case 'today':
+        setFilterDateFrom(format(today, 'yyyy-MM-dd'))
+        setFilterDateTo(format(today, 'yyyy-MM-dd'))
+        break
+      case 'yesterday':
+        const yesterday = subDays(today, 1)
+        setFilterDateFrom(format(yesterday, 'yyyy-MM-dd'))
+        setFilterDateTo(format(yesterday, 'yyyy-MM-dd'))
+        break
+      case 'thisWeek':
+        const weekStart = subDays(today, today.getDay())
+        setFilterDateFrom(format(weekStart, 'yyyy-MM-dd'))
+        setFilterDateTo(format(today, 'yyyy-MM-dd'))
+        break
+      case 'thisMonth':
+        setFilterDateFrom(format(startOfMonth(today), 'yyyy-MM-dd'))
+        setFilterDateTo(format(endOfMonth(today), 'yyyy-MM-dd'))
+        break
+      case 'last30Days':
+        setFilterDateFrom(format(subDays(today, 30), 'yyyy-MM-dd'))
+        setFilterDateTo(format(today, 'yyyy-MM-dd'))
+        break
+      case 'thisYear':
+        setFilterDateFrom(format(startOfYear(today), 'yyyy-MM-dd'))
+        setFilterDateTo(format(endOfYear(today), 'yyyy-MM-dd'))
+        break
+    }
+    setCurrentPage(1)
+  }
+
   const exportToCSV = () => {
     const headers = ['Date', 'Type', 'Category', 'Description', 'Account', 'Amount']
     const rows = transactions.map(t => [
@@ -217,6 +288,112 @@ export default function TransactionsPage() {
     a.href = url
     a.download = `transactions-${format(new Date(), 'yyyy-MM-dd')}.csv`
     a.click()
+
+    toast.success('Exported to CSV', {
+      description: `${transactions.length} transactions exported`
+    })
+  }
+
+  const exportToPDF = () => {
+    const doc = new jsPDF()
+
+    // Title
+    doc.setFontSize(18)
+    doc.text('Transaction Report', 14, 20)
+
+    // Summary info
+    doc.setFontSize(10)
+    doc.text(`Generated: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 14, 28)
+    doc.text(`Total Transactions: ${totalCount}`, 14, 34)
+    doc.text(`Total Income: ${formatCurrency(totalIncome)}`, 14, 40)
+    doc.text(`Total Expense: ${formatCurrency(totalExpense)}`, 14, 46)
+    doc.text(`Net Amount: ${formatCurrency(netAmount)}`, 14, 52)
+
+    // Table
+    const tableData = transactions.map(t => [
+      format(new Date(t.date), 'dd/MM/yyyy'),
+      t.type.toUpperCase(),
+      t.category,
+      t.description || '-',
+      t.account_name,
+      formatCurrency(t.amount)
+    ])
+
+    autoTable(doc, {
+      head: [['Date', 'Type', 'Category', 'Description', 'Account', 'Amount']],
+      body: tableData,
+      startY: 58,
+      theme: 'striped',
+      headStyles: { fillColor: [0, 0, 0] },
+      styles: { fontSize: 8 },
+      columnStyles: {
+        0: { cellWidth: 25 },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 30 },
+        3: { cellWidth: 45 },
+        4: { cellWidth: 30 },
+        5: { cellWidth: 30, halign: 'right' }
+      }
+    })
+
+    doc.save(`transactions-${format(new Date(), 'yyyy-MM-dd')}.pdf`)
+
+    toast.success('Exported to PDF', {
+      description: `${transactions.length} transactions exported`
+    })
+  }
+
+  const exportToExcel = () => {
+    // Prepare data
+    const data = transactions.map(t => ({
+      'Date': format(new Date(t.date), 'dd/MM/yyyy'),
+      'Type': t.type.toUpperCase(),
+      'Category': t.category,
+      'Description': t.description || '-',
+      'Account': t.account_name,
+      'Amount': t.amount,
+      'Attachments': t.attachment_count || 0
+    }))
+
+    // Add summary at the top
+    const summary = [
+      { A: 'TRANSACTION REPORT', B: '', C: '', D: '', E: '', F: '', G: '' },
+      { A: `Generated: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, B: '', C: '', D: '', E: '', F: '', G: '' },
+      { A: '', B: '', C: '', D: '', E: '', F: '', G: '' },
+      { A: 'Total Transactions:', B: totalCount, C: '', D: '', E: '', F: '', G: '' },
+      { A: 'Total Income:', B: totalIncome, C: '', D: '', E: '', F: '', G: '' },
+      { A: 'Total Expense:', B: totalExpense, C: '', D: '', E: '', F: '', G: '' },
+      { A: 'Net Amount:', B: netAmount, C: '', D: '', E: '', F: '', G: '' },
+      { A: '', B: '', C: '', D: '', E: '', F: '', G: '' },
+    ]
+
+    // Create worksheet
+    const ws = XLSX.utils.json_to_sheet(summary, { skipHeader: true })
+
+    // Append transaction data
+    XLSX.utils.sheet_add_json(ws, data, { origin: -1 })
+
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 15 }, // Date
+      { wch: 10 }, // Type
+      { wch: 20 }, // Category
+      { wch: 30 }, // Description
+      { wch: 20 }, // Account
+      { wch: 15 }, // Amount
+      { wch: 12 }  // Attachments
+    ]
+
+    // Create workbook
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Transactions')
+
+    // Save file
+    XLSX.writeFile(wb, `transactions-${format(new Date(), 'yyyy-MM-dd')}.xlsx`)
+
+    toast.success('Exported to Excel', {
+      description: `${transactions.length} transactions exported`
+    })
   }
 
   const formatCurrency = (amount: number) => {
@@ -272,9 +449,17 @@ export default function TransactionsPage() {
             <Plus className="h-4 w-4 mr-2" />
             Add Transaction
           </Button>
+          <Button onClick={exportToPDF} variant="outline">
+            <FileDown className="h-4 w-4 mr-2" />
+            Export PDF
+          </Button>
+          <Button onClick={exportToExcel} variant="outline">
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            Export Excel
+          </Button>
           <Button onClick={exportToCSV} variant="outline">
             <Download className="h-4 w-4 mr-2" />
-            Export CSV
+            CSV
           </Button>
         </div>
       </div>
@@ -299,9 +484,61 @@ export default function TransactionsPage() {
 
       {/* Filters */}
       <Card className="p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Filter className="h-5 w-5" />
-          <h2 className="text-lg font-semibold">Filters</h2>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            <h2 className="text-lg font-semibold">Filters</h2>
+          </div>
+          {(filterType !== 'all' || filterCategory !== 'all' || filterAccount !== 'all' || filterDateFrom || filterDateTo || searchQuery || filterAmountMin || filterAmountMax) && (
+            <Button onClick={clearAllFilters} variant="outline" size="sm">
+              <X className="h-4 w-4 mr-2" />
+              Clear All
+            </Button>
+          )}
+        </div>
+
+        {/* Quick Filters */}
+        <div className="mb-4">
+          <Label className="mb-2 block">Quick Filters</Label>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => applyQuickFilter('today')} variant="outline" size="sm">
+              Today
+            </Button>
+            <Button onClick={() => applyQuickFilter('yesterday')} variant="outline" size="sm">
+              Yesterday
+            </Button>
+            <Button onClick={() => applyQuickFilter('thisWeek')} variant="outline" size="sm">
+              This Week
+            </Button>
+            <Button onClick={() => applyQuickFilter('thisMonth')} variant="outline" size="sm">
+              This Month
+            </Button>
+            <Button onClick={() => applyQuickFilter('last30Days')} variant="outline" size="sm">
+              Last 30 Days
+            </Button>
+            <Button onClick={() => applyQuickFilter('thisYear')} variant="outline" size="sm">
+              This Year
+            </Button>
+          </div>
+        </div>
+
+        {/* Search Box */}
+        <div className="mb-4">
+          <Label htmlFor="search" className="mb-2 block">Search</Label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              id="search"
+              type="text"
+              placeholder="Search by description or merchant..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value)
+                setCurrentPage(1)
+              }}
+              className="pl-10"
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -373,24 +610,38 @@ export default function TransactionsPage() {
           </div>
         </div>
 
-        {/* Clear Filters */}
-        {(filterType !== 'all' || filterCategory !== 'all' || filterAccount !== 'all' || filterDateFrom || filterDateTo) && (
-          <div className="mt-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setFilterType('all')
-                setFilterCategory('all')
-                setFilterAccount('all')
-                setFilterDateFrom('')
-                setFilterDateTo('')
-              }}
-            >
-              Clear All Filters
-            </Button>
+        {/* Amount Range Filter */}
+        <div className="mt-4">
+          <Label className="mb-2 block">Amount Range</Label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="amountMin" className="text-sm text-muted-foreground">Min Amount</Label>
+              <Input
+                id="amountMin"
+                type="number"
+                placeholder="0"
+                value={filterAmountMin}
+                onChange={(e) => {
+                  setFilterAmountMin(e.target.value)
+                  setCurrentPage(1)
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="amountMax" className="text-sm text-muted-foreground">Max Amount</Label>
+              <Input
+                id="amountMax"
+                type="number"
+                placeholder="0"
+                value={filterAmountMax}
+                onChange={(e) => {
+                  setFilterAmountMax(e.target.value)
+                  setCurrentPage(1)
+                }}
+              />
+            </div>
           </div>
-        )}
+        </div>
       </Card>
 
       {/* Transactions Table */}

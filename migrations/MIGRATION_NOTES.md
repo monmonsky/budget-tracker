@@ -1,10 +1,65 @@
 # Database Migration Notes
 
+## Migration Order
+
+**IMPORTANT**: Apply migrations in this exact order for a fresh installation:
+
+### Fresh Installation (New Database)
+
+1. ✅ **FULL_SCHEMA.sql** - Base schema (v2.0.0)
+   - Core tables: profiles, accounts, transactions, categories, budgets
+   - Investment & KPR tracking
+   - Recurring transactions
+   - Budget alerts with email notifications
+   - RLS policies
+
+2. ✅ **ADD_CREDIT_CARD_SUPPORT.sql** - Credit card accounts (v2.1.0)
+   - Adds `credit_card` account type
+   - Adds `credit_limit` column
+   - Credit card utilization tracking
+
+3. ✅ **ADD_BALANCE_HISTORY_LOG.sql** - Balance change tracking (v2.1.2)
+   - Creates `account_balance_history` table
+   - Auto-logs all balance changes with transaction context
+   - Enhanced trigger with emoji indicators
+
+4. ✅ **ADD_GOALS_AND_BILLS.sql** - Savings goals & bill reminders (v2.2.0)
+   - Creates `savings_goals` table with progress tracking
+   - Creates `bill_reminders` table with payment history
+   - Auto-complete goals trigger
+   - Bill payment tracking function
+
+5. ✅ **ADD_BUDGET_TEMPLATES_AND_HEALTH_SCORE.sql** - Budget templates & health scoring (v2.3.0)
+   - Creates `budget_templates` and `budget_template_items` tables
+   - Creates `financial_health_scores` table
+   - Template application function
+   - Health score calculation function (0-100)
+   - System templates: 50/30/20 Rule, Zero-Based Budget
+
+### Existing Database (Upgrading)
+
+If you already have an existing database, run only the migrations you haven't applied yet. Check which tables exist in your database first.
+
+## To Apply Budget Templates & Health Score
+
+**Copy and run in Supabase SQL Editor:**
+```
+migrations/ADD_BUDGET_TEMPLATES_AND_HEALTH_SCORE.sql
+```
+
+**Features Added:**
+- 📝 Budget Templates (50/30/20 Rule, Zero-Based Budget)
+- ⚡ Financial Health Score (0-100 rating)
+- 💡 Smart Recommendations
+- 📊 5 Component Scores (Savings, Debt, Emergency Fund, Budget, Net Worth)
+
+---
+
 ## Consolidated Schema
 
-All database migrations have been consolidated into a single file: **`FULL_SCHEMA.sql`**
+The base schema is in: **`FULL_SCHEMA.sql`**
 
-This file contains the complete, up-to-date database schema including all tables, columns, indexes, RLS policies, functions, triggers, and default data.
+This file contains the complete database schema including all tables, columns, indexes, RLS policies, functions, triggers, and default data.
 
 ## Previously Separate Files (Now Deprecated)
 

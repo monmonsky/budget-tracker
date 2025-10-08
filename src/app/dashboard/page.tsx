@@ -14,12 +14,19 @@ import {
   Trash2,
   Filter,
   RefreshCw,
-  Play
+  Play,
+  Plus,
+  Bell,
+  CreditCard,
+  ArrowRight,
+  AlertTriangle
 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useLoading } from '@/contexts/LoadingContext'
 import { DashboardSkeleton } from '@/components/skeletons/card-skeleton'
+import FinancialHealthScore from '@/components/FinancialHealthScore'
 
 interface DashboardStats {
   totalBalance: number
@@ -27,6 +34,7 @@ interface DashboardStats {
   monthlyExpenses: number
   investmentValue: number
   kprBalance: number
+  creditCardDebt: number
   netWorth: number
 }
 
@@ -51,7 +59,26 @@ interface RecurringTransaction {
   is_active: boolean
 }
 
+interface BudgetAtRisk {
+  id: string
+  category: string
+  amount: number
+  spent: number
+  percentage: number
+  month: string
+}
+
+interface CreditCardAccount {
+  id: string
+  account_name: string
+  bank_name: string
+  balance: number
+  credit_limit: number
+  utilization: number
+}
+
 export default function DashboardPage() {
+  const router = useRouter()
   const { setLoading, setLoadingText } = useLoading()
   const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [stats, setStats] = useState<DashboardStats>({
@@ -60,18 +87,23 @@ export default function DashboardPage() {
     monthlyExpenses: 0,
     investmentValue: 0,
     kprBalance: 0,
+    creditCardDebt: 0,
     netWorth: 0,
   })
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [transactionFilter, setTransactionFilter] = useState<'all' | 'income' | 'expense'>('all')
   const [upcomingRecurring, setUpcomingRecurring] = useState<RecurringTransaction[]>([])
+  const [budgetsAtRisk, setBudgetsAtRisk] = useState<BudgetAtRisk[]>([])
+  const [creditCards, setCreditCards] = useState<CreditCardAccount[]>([])
 
   useEffect(() => {
     const loadInitialData = async () => {
       await Promise.all([
         fetchDashboardStats(),
         fetchRecentTransactions(),
-        fetchUpcomingRecurring()
+        fetchUpcomingRecurring(),
+        fetchBudgetsAtRisk(),
+        fetchCreditCards()
       ])
       setIsInitialLoading(false)
     }
@@ -145,8 +177,21 @@ export default function DashboardPage() {
 
       const kprBalance = kpr ? Number(kpr.current_balance) : 0
 
-      // Calculate net worth
-      const netWorth = totalBalance + investmentValue - kprBalance
+      // Fetch credit card debt (negative balance = debt)
+      const { data: creditCardAccounts } = await supabase
+        .from('accounts')
+        .select('balance')
+        .eq('account_type', 'credit_card')
+        .eq('is_active', true)
+
+      const creditCardDebt = creditCardAccounts?.reduce((sum, acc) => {
+        const balance = Number(acc.balance)
+        // Only count negative balances as debt
+        return sum + (balance < 0 ? Math.abs(balance) : 0)
+      }, 0) || 0
+
+      // Calculate net worth (subtract credit card debt)
+      const netWorth = totalBalance + investmentValue - kprBalance - creditCardDebt
 
       setStats({
         totalBalance,
@@ -154,6 +199,7 @@ export default function DashboardPage() {
         monthlyExpenses,
         investmentValue,
         kprBalance,
+        creditCardDebt,
         netWorth,
       })
     } catch (error) {
@@ -228,6 +274,99 @@ export default function DashboardPage() {
     }
   }
 
+  const fetchBudgetsAtRisk = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const now = new Date()
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+
+      // Get budgets for current month
+      const { data: budgets } = await supabase
+        .from('budgets')
+        .select('id, category, amount, month')
+        .eq('month', currentMonth)
+
+      if (!budgets || budgets.length === 0) {
+        setBudgetsAtRisk([])
+        return
+      }
+
+      // Get spending for each budget category this month
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+
+      const budgetsWithSpending = await Promise.all(
+        budgets.map(async (budget) => {
+          const { data: expenses } = await supabase
+            .from('transactions')
+            .select('amount')
+            .eq('type', 'expense')
+            .eq('category', budget.category)
+            .gte('date', firstDay.toISOString())
+            .lte('date', lastDay.toISOString())
+
+          const spent = expenses?.reduce((sum, t) => sum + Number(t.amount), 0) || 0
+          const percentage = (spent / Number(budget.amount)) * 100
+
+          return {
+            id: budget.id,
+            category: budget.category,
+            amount: Number(budget.amount),
+            spent,
+            percentage,
+            month: budget.month
+          }
+        })
+      )
+
+      // Filter budgets at 80% or more
+      const atRisk = budgetsWithSpending.filter(b => b.percentage >= 80)
+      setBudgetsAtRisk(atRisk.sort((a, b) => b.percentage - a.percentage))
+    } catch (error) {
+      console.error('Error fetching budgets at risk:', error)
+    }
+  }
+
+  const fetchCreditCards = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: creditCardAccounts } = await supabase
+        .from('accounts')
+        .select('id, account_name, bank_name, balance, credit_limit')
+        .eq('account_type', 'credit_card')
+        .eq('is_active', true)
+        .order('bank_name')
+
+      if (!creditCardAccounts) {
+        setCreditCards([])
+        return
+      }
+
+      const cardsWithUtilization = creditCardAccounts.map(card => {
+        const outstanding = Math.abs(Number(card.balance))
+        const limit = Number(card.credit_limit) || 0
+        const utilization = limit > 0 ? (outstanding / limit) * 100 : 0
+
+        return {
+          id: card.id,
+          account_name: card.account_name,
+          bank_name: card.bank_name,
+          balance: Number(card.balance),
+          credit_limit: limit,
+          utilization
+        }
+      })
+
+      setCreditCards(cardsWithUtilization)
+    } catch (error) {
+      console.error('Error fetching credit cards:', error)
+    }
+  }
+
   const handleDeleteTransaction = async (id: string) => {
     if (!confirm('Are you sure you want to delete this transaction?')) return
 
@@ -284,11 +423,18 @@ export default function DashboardPage() {
       bgColor: 'bg-purple-50',
     },
     {
+      title: 'Credit Card Debt',
+      value: stats.creditCardDebt,
+      icon: CreditCard,
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-50',
+    },
+    {
       title: 'KPR Balance',
       value: stats.kprBalance,
       icon: Building2,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-50',
+      color: 'text-amber-600',
+      bgColor: 'bg-amber-50',
     },
     {
       title: 'Net Worth',
@@ -305,9 +451,27 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-gray-600">Overview of your financial status</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-gray-600">Overview of your financial status</p>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="flex items-center gap-2">
+          <Button onClick={() => router.push('/dashboard/transactions')} variant="outline" size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Transaction
+          </Button>
+          <Button onClick={() => router.push('/dashboard/budget')} variant="outline" size="sm">
+            <CreditCard className="h-4 w-4 mr-2" />
+            View Budgets
+          </Button>
+          <Button onClick={() => router.push('/dashboard/recurring')} variant="outline" size="sm">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Recurring
+          </Button>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -327,32 +491,156 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Monthly Summary */}
-      <Card className="p-6">
-        <h2 className="text-xl font-bold mb-4">Monthly Summary</h2>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600">Income</span>
-            <span className="font-semibold text-green-600">
-              {formatCurrency(stats.monthlyIncome)}
-            </span>
+      {/* Monthly Overview with Insights */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="p-6">
+          <h2 className="text-xl font-bold mb-4">Monthly Overview</h2>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">Income</span>
+              <span className="font-semibold text-green-600">
+                {formatCurrency(stats.monthlyIncome)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">Expenses</span>
+              <span className="font-semibold text-red-600">
+                {formatCurrency(stats.monthlyExpenses)}
+              </span>
+            </div>
+            <div className="border-t pt-4 flex items-center justify-between">
+              <span className="font-semibold">Net Cash Flow</span>
+              <span className={`font-bold text-lg ${stats.monthlyIncome - stats.monthlyExpenses >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCurrency(stats.monthlyIncome - stats.monthlyExpenses)}
+              </span>
+            </div>
+            {stats.monthlyIncome > 0 && (
+              <div className="border-t pt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-600">Savings Rate</span>
+                  <span className="font-semibold">
+                    {(((stats.monthlyIncome - stats.monthlyExpenses) / stats.monthlyIncome) * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className={`h-2 rounded-full ${
+                      ((stats.monthlyIncome - stats.monthlyExpenses) / stats.monthlyIncome) * 100 >= 20
+                        ? 'bg-green-600'
+                        : 'bg-orange-600'
+                    }`}
+                    style={{
+                      width: `${Math.min(((stats.monthlyIncome - stats.monthlyExpenses) / stats.monthlyIncome) * 100, 100)}%`
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Target: 20% or more for healthy savings
+                </p>
+              </div>
+            )}
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600">Expenses</span>
-            <span className="font-semibold text-red-600">
-              {formatCurrency(stats.monthlyExpenses)}
-            </span>
-          </div>
-          <div className="border-t pt-4 flex items-center justify-between">
-            <span className="font-semibold">Net Cash Flow</span>
-            <span className={`font-bold text-lg ${stats.monthlyIncome - stats.monthlyExpenses >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {formatCurrency(stats.monthlyIncome - stats.monthlyExpenses)}
-            </span>
-          </div>
-        </div>
-      </Card>
+        </Card>
 
-      {/* Quick Actions */}
+        {/* Budget Alert Summary */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-600" />
+              <h2 className="text-xl font-bold">Budget Alerts</h2>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard/budget')}>
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
+          {budgetsAtRisk.length === 0 ? (
+            <div className="text-center py-6">
+              <p className="text-green-600 font-semibold mb-1">All budgets on track! 🎉</p>
+              <p className="text-sm text-gray-600">No budgets have exceeded 80% yet</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {budgetsAtRisk.slice(0, 3).map((budget) => (
+                <div key={budget.id} className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-gray-900">{budget.category}</span>
+                    <Badge variant={budget.percentage >= 100 ? 'destructive' : 'default'}>
+                      {budget.percentage.toFixed(0)}%
+                    </Badge>
+                  </div>
+                  <div className="w-full bg-white rounded-full h-2 mb-2">
+                    <div
+                      className={`h-2 rounded-full ${
+                        budget.percentage >= 100 ? 'bg-red-600' : 'bg-orange-600'
+                      }`}
+                      style={{ width: `${Math.min(budget.percentage, 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-gray-600">
+                    <span>{formatCurrency(budget.spent)}</span>
+                    <span>of {formatCurrency(budget.amount)}</span>
+                  </div>
+                </div>
+              ))}
+              {budgetsAtRisk.length > 3 && (
+                <Button variant="outline" size="sm" className="w-full" onClick={() => router.push('/dashboard/budget')}>
+                  View {budgetsAtRisk.length - 3} more alert{budgetsAtRisk.length > 4 ? 's' : ''}
+                </Button>
+              )}
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* Credit Card Debt Widget */}
+      {creditCards.length > 0 && (
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-orange-600" />
+              <h2 className="text-xl font-bold">Credit Card Utilization</h2>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard/accounts')}>
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="space-y-3">
+            {creditCards.map((card) => (
+              <div key={card.id} className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <p className="font-medium text-gray-900">{card.account_name}</p>
+                    <p className="text-xs text-gray-600">{card.bank_name}</p>
+                  </div>
+                  <Badge variant={card.utilization >= 70 ? 'destructive' : card.utilization >= 50 ? 'default' : 'outline'}>
+                    {card.utilization.toFixed(0)}%
+                  </Badge>
+                </div>
+                <div className="w-full bg-white rounded-full h-2 mb-2">
+                  <div
+                    className={`h-2 rounded-full ${
+                      card.utilization >= 70 ? 'bg-red-600' : card.utilization >= 50 ? 'bg-orange-600' : 'bg-green-600'
+                    }`}
+                    style={{ width: `${Math.min(card.utilization, 100)}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-xs text-gray-600">
+                  <span>Outstanding: {formatCurrency(Math.abs(card.balance))}</span>
+                  <span>Limit: {formatCurrency(card.credit_limit)}</span>
+                </div>
+              </div>
+            ))}
+            <div className="pt-3 border-t">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Total Credit Card Debt</span>
+                <span className="text-lg font-bold text-orange-600">{formatCurrency(stats.creditCardDebt)}</span>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Financial Goals Progress */}
       <Card className="p-6">
         <h2 className="text-xl font-bold mb-4">Financial Goals Progress</h2>
         <div className="space-y-4">
@@ -430,6 +718,9 @@ export default function DashboardPage() {
           </div>
         </Card>
       )}
+
+      {/* Financial Health Score */}
+      <FinancialHealthScore />
 
       {/* Recent Transactions */}
       <Card className="p-6">

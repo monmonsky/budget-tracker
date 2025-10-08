@@ -141,7 +141,7 @@ export default function ImportPage() {
   }
 
   const handleMappingChange = (field: keyof ColumnMapping, value: string) => {
-    const newMapping = { ...mapping, [field]: value }
+    const newMapping = { ...mapping, [field]: value === 'none' ? '' : value }
     setMapping(newMapping)
   }
 
@@ -490,12 +490,12 @@ export default function ImportPage() {
 
                 <div className="space-y-2">
                   <Label>Type Column (optional)</Label>
-                  <Select value={mapping.type || ''} onValueChange={(val) => handleMappingChange('type', val)}>
+                  <Select value={mapping.type || 'none'} onValueChange={(val) => handleMappingChange('type', val)}>
                     <SelectTrigger className="bg-background border-border">
                       <SelectValue placeholder="Select column (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {headers.map(h => (
                         <SelectItem key={h} value={h}>{h}</SelectItem>
                       ))}

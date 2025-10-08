@@ -8,22 +8,33 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Plus, X, Wallet, Loader2, FolderPlus } from 'lucide-react'
+import { Plus, X, Wallet, Loader2, FolderPlus, History, TrendingUp, TrendingDown } from 'lucide-react'
 import { useLoading } from '@/contexts/LoadingContext'
 import { toast } from 'sonner'
 
 interface Account {
   id: string
   account_name: string
-  account_type: 'checking' | 'savings' | 'investment' | 'crypto' | 'debt'
+  account_type: 'checking' | 'savings' | 'investment' | 'crypto' | 'debt' | 'credit_card'
   bank_name: string
   balance: number
   currency: string
+  credit_limit?: number | null
   owner: 'husband' | 'wife' | 'joint'
   is_active: boolean
   parent_account_id: string | null
   is_sub_account: boolean
   sub_account_type: 'pocket' | 'saver' | 'wallet' | 'virtual' | null
+}
+
+interface BalanceHistory {
+  id: string
+  old_balance: number
+  new_balance: number
+  change_amount: number
+  change_type: 'increase' | 'decrease' | 'manual_adjustment'
+  reason: string
+  created_at: string
 }
 
 export default function AccountsPage() {
@@ -33,13 +44,17 @@ export default function AccountsPage() {
   const [showForm, setShowForm] = useState(false)
   const [showSubAccountForm, setShowSubAccountForm] = useState(false)
   const [selectedParentAccount, setSelectedParentAccount] = useState<string | null>(null)
+  const [showBalanceHistory, setShowBalanceHistory] = useState(false)
+  const [selectedAccountForHistory, setSelectedAccountForHistory] = useState<string | null>(null)
+  const [balanceHistory, setBalanceHistory] = useState<BalanceHistory[]>([])
 
   // Form state
   const [formData, setFormData] = useState({
     account_name: '',
-    account_type: 'checking' as 'checking' | 'savings' | 'investment' | 'crypto' | 'debt',
+    account_type: 'checking' as 'checking' | 'savings' | 'investment' | 'crypto' | 'debt' | 'credit_card',
     bank_name: '',
     balance: '',
+    credit_limit: '',
     owner: 'husband' as 'husband' | 'wife' | 'joint',
     is_sub_account: false,
     parent_account_id: '',
@@ -82,21 +97,28 @@ export default function AccountsPage() {
         return
       }
 
+      const insertData: any = {
+        user_id: user.id,
+        account_name: formData.account_name,
+        account_type: formData.account_type,
+        bank_name: formData.bank_name,
+        balance: parseFloat(formData.balance),
+        currency: 'IDR',
+        owner: formData.owner,
+        is_active: true,
+        is_sub_account: formData.is_sub_account,
+        parent_account_id: formData.parent_account_id || null,
+        sub_account_type: formData.sub_account_type || null,
+      }
+
+      // Add credit_limit only for credit card accounts
+      if (formData.account_type === 'credit_card' && formData.credit_limit) {
+        insertData.credit_limit = parseFloat(formData.credit_limit)
+      }
+
       const { data, error} = await supabase
         .from('accounts')
-        .insert({
-          user_id: user.id,
-          account_name: formData.account_name,
-          account_type: formData.account_type,
-          bank_name: formData.bank_name,
-          balance: parseFloat(formData.balance),
-          currency: 'IDR',
-          owner: formData.owner,
-          is_active: true,
-          is_sub_account: formData.is_sub_account,
-          parent_account_id: formData.parent_account_id || null,
-          sub_account_type: formData.sub_account_type || null,
-        })
+        .insert(insertData)
         .select()
 
       if (error) {
@@ -120,6 +142,7 @@ export default function AccountsPage() {
         account_type: 'checking',
         bank_name: '',
         balance: '',
+        credit_limit: '',
         owner: 'husband',
         is_sub_account: false,
         parent_account_id: '',
@@ -170,6 +193,7 @@ export default function AccountsPage() {
     const colors: Record<string, string> = {
       'checking': 'bg-blue-100 text-blue-800',
       'savings': 'bg-green-100 text-green-800',
+      'credit_card': 'bg-orange-100 text-orange-800',
       'investment': 'bg-purple-100 text-purple-800',
       'crypto': 'bg-yellow-100 text-yellow-800',
       'debt': 'bg-red-100 text-red-800',
@@ -184,6 +208,30 @@ export default function AccountsPage() {
       'joint': 'bg-gray-100 text-gray-800',
     }
     return colors[owner] || 'bg-gray-100 text-gray-800'
+  }
+
+  const fetchBalanceHistory = async (accountId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('account_balance_history')
+        .select('*')
+        .eq('account_id', accountId)
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      if (error) {
+        console.error('Error fetching balance history:', error)
+        toast.error('Failed to load balance history')
+        return
+      }
+
+      setBalanceHistory(data || [])
+      setSelectedAccountForHistory(accountId)
+      setShowBalanceHistory(true)
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Failed to load balance history')
+    }
   }
 
   const activeAccounts = accounts.filter(acc => acc.is_active)
@@ -303,7 +351,7 @@ export default function AccountsPage() {
                 <Label htmlFor="account_type">Account Type</Label>
                 <Select
                   value={formData.account_type}
-                  onValueChange={(value: 'checking' | 'savings' | 'investment' | 'crypto' | 'debt') => setFormData({ ...formData, account_type: value })}
+                  onValueChange={(value: 'checking' | 'savings' | 'investment' | 'crypto' | 'debt' | 'credit_card') => setFormData({ ...formData, account_type: value })}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -311,6 +359,7 @@ export default function AccountsPage() {
                   <SelectContent>
                     <SelectItem value="checking">Checking</SelectItem>
                     <SelectItem value="savings">Savings</SelectItem>
+                    <SelectItem value="credit_card">Credit Card</SelectItem>
                     <SelectItem value="investment">Investment</SelectItem>
                     <SelectItem value="crypto">Crypto</SelectItem>
                     <SelectItem value="debt">Debt</SelectItem>
@@ -335,8 +384,10 @@ export default function AccountsPage() {
                 </Select>
               </div>
 
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="balance">Current Balance (Rp)</Label>
+              <div className="space-y-2">
+                <Label htmlFor="balance">
+                  {formData.account_type === 'credit_card' ? 'Current Outstanding (Rp)' : 'Current Balance (Rp)'}
+                </Label>
                 <Input
                   id="balance"
                   type="number"
@@ -346,7 +397,25 @@ export default function AccountsPage() {
                   onChange={(e) => setFormData({ ...formData, balance: e.target.value })}
                   required
                 />
+                {formData.account_type === 'credit_card' && (
+                  <p className="text-xs text-muted-foreground">Enter negative value for outstanding balance (e.g., -5000000)</p>
+                )}
               </div>
+
+              {formData.account_type === 'credit_card' && (
+                <div className="space-y-2">
+                  <Label htmlFor="credit_limit">Credit Limit (Rp)</Label>
+                  <Input
+                    id="credit_limit"
+                    type="number"
+                    step="0.01"
+                    placeholder="e.g., 50000000"
+                    value={formData.credit_limit}
+                    onChange={(e) => setFormData({ ...formData, credit_limit: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">Maximum credit limit for this card</p>
+                </div>
+              )}
             </div>
 
             <Button type="submit" className="w-full" disabled={submitting}>
@@ -416,19 +485,32 @@ export default function AccountsPage() {
                               Total: {formatCurrency(totalWithSubAccounts)}
                             </p>
                           )}
+                          {account.account_type === 'credit_card' && account.credit_limit && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Limit: {formatCurrency(account.credit_limit)}
+                            </p>
+                          )}
                           <p className="text-sm text-muted-foreground">{account.currency}</p>
                         </div>
                       </div>
 
-                      {/* Add Sub-Account Button */}
-                      <div className="mt-3 pt-3 border-t">
+                      {/* Action Buttons */}
+                      <div className="mt-3 pt-3 border-t flex gap-2">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleAddSubAccount(account.id)}
                         >
                           <FolderPlus className="h-4 w-4 mr-2" />
-                          Add Sub-Account / Wallet
+                          Add Sub-Account
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fetchBalanceHistory(account.id)}
+                        >
+                          <History className="h-4 w-4 mr-2" />
+                          Balance History
                         </Button>
                       </div>
                     </div>
@@ -484,6 +566,102 @@ export default function AccountsPage() {
           })}
         </div>
       </Card>
+
+      {/* Balance History Modal */}
+      {showBalanceHistory && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                <h2 className="text-xl font-bold">Balance History</h2>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setShowBalanceHistory(false)
+                  setBalanceHistory([])
+                  setSelectedAccountForHistory(null)
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1">
+              {balanceHistory.length === 0 ? (
+                <div className="text-center py-12">
+                  <History className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-600">No balance history yet</p>
+                  <p className="text-sm text-gray-500 mt-1">Balance changes will appear here</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {balanceHistory.map((history) => {
+                    const isIncrease = history.change_type === 'increase'
+                    const isDecrease = history.change_type === 'decrease'
+
+                    return (
+                      <div key={history.id} className="p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-start gap-3">
+                            <div className={`p-2 rounded-lg ${
+                              isIncrease ? 'bg-green-100 text-green-600' :
+                              isDecrease ? 'bg-red-100 text-red-600' :
+                              'bg-gray-100 text-gray-600'
+                            }`}>
+                              {isIncrease ? <TrendingUp className="h-4 w-4" /> :
+                               isDecrease ? <TrendingDown className="h-4 w-4" /> :
+                               <History className="h-4 w-4" />}
+                            </div>
+                            <div>
+                              <p className="font-medium">{history.reason || 'Balance change'}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {new Date(history.created_at).toLocaleString('id-ID', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className={`font-bold text-lg ${
+                              isIncrease ? 'text-green-600' :
+                              isDecrease ? 'text-red-600' :
+                              'text-gray-600'
+                            }`}>
+                              {isIncrease ? '+' : isDecrease ? '-' : ''}
+                              {formatCurrency(Math.abs(history.change_amount))}
+                            </p>
+                            <Badge variant="outline" className="mt-1">
+                              {history.change_type.replace('_', ' ')}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 pt-3 border-t grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <p className="text-muted-foreground">Previous Balance</p>
+                            <p className="font-semibold">{formatCurrency(history.old_balance)}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-muted-foreground">New Balance</p>
+                            <p className="font-semibold">{formatCurrency(history.new_balance)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

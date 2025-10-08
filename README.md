@@ -26,7 +26,17 @@ A comprehensive personal finance management application built with Next.js 15, R
 ### 💼 Investment & Debt Tracking
 - **Investment Portfolios** - Track stocks, crypto, mutual funds (Bibit, Binance)
 - **KPR/Mortgage Tracker** - Payment schedules with principal/interest breakdown
+- **Credit Card Support** - Track credit cards with utilization monitoring
+- **Debt Accounts** - Track loans and installments (Flexy Cash, etc)
+- **Balance History Log** - Detailed transaction-linked balance changes
 - **Multi-currency Support** - IDR, USD, EUR, SGD, MYR
+
+### 📝 Planning & Goals
+- **Budget Templates** - 50/30/20 Rule, Zero-Based Budget templates
+- **Savings Goals** - Track progress towards financial goals with deadlines
+- **Bill Reminders** - Never miss due dates with payment tracking
+- **Financial Health Score** - 0-100 rating based on 5 key metrics
+- **Smart Recommendations** - AI-generated improvement suggestions
 
 ### ⚙️ Settings & Customization
 - **App Settings** - Customize app title, currency, date format, fiscal year
@@ -83,10 +93,36 @@ npm install
 3. Copy your project URL and anon key
 
 #### Run Database Schema
-1. Open Supabase Dashboard → SQL Editor
-2. Copy content from `migrations/FULL_SCHEMA.sql`
-3. Execute the SQL script
-4. Verify all tables were created successfully
+
+**IMPORTANT**: Run migrations in this specific order:
+
+1. **Base Schema** (Required first):
+   - Open Supabase Dashboard → SQL Editor
+   - Copy content from `migrations/FULL_SCHEMA.sql`
+   - Execute the SQL script
+   - Verify all tables were created successfully
+
+2. **Additional Migrations** (Run in order):
+   ```sql
+   -- Run these one by one in Supabase SQL Editor:
+
+   -- v2.1.0: Credit Card Support
+   migrations/ADD_CREDIT_CARD_SUPPORT.sql
+
+   -- v2.1.2: Balance History Log
+   migrations/ADD_BALANCE_HISTORY_LOG.sql
+
+   -- v2.2.0: Goals & Bill Reminders
+   migrations/ADD_GOALS_AND_BILLS.sql
+
+   -- v2.3.0: Budget Templates & Financial Health Score
+   migrations/ADD_BUDGET_TEMPLATES_AND_HEALTH_SCORE.sql
+   ```
+
+3. **Verification**:
+   - Check that all tables exist in Table Editor
+   - Verify RLS policies are enabled
+   - Test by creating a user account
 
 #### Setup Storage Bucket
 1. Go to Supabase Dashboard → Storage
@@ -106,7 +142,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
 # App Configuration
 NEXT_PUBLIC_APP_NAME=Monthly Budget Tracker
-NEXT_PUBLIC_APP_VERSION=2.0.0
+NEXT_PUBLIC_APP_VERSION=2.3.0
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 # SMTP Email Configuration (Optional - can be configured in Settings page)
@@ -340,6 +376,46 @@ Edit `tailwind.config.ts` and update color variables in `app/globals.css`.
 1. Create new folder in `src/app/dashboard/your-page/`
 2. Add `page.tsx` with your component
 3. Update navigation in `src/app/dashboard/layout.tsx`
+
+## 📚 Version History
+
+### v2.3.0 (2025-01-05) - Current Version
+- ✅ **Budget Templates** - 50/30/20 Rule & Zero-Based Budget
+- ✅ **Financial Health Score** - Comprehensive 0-100 rating system
+- ✅ **Bill Reminders in Notifications** - Upcoming bills in header bell
+
+### v2.2.0 (2025-01-05)
+- ✅ **Savings Goals** - Progress tracking with deadlines
+- ✅ **Bill Reminders** - Payment tracking with due dates
+- ✅ **Balance History Page** - Dedicated page with filters
+
+### v2.1.2 (2025-01-05)
+- ✅ **Balance History Log** - Transaction-linked balance changes
+- ✅ **Enhanced Triggers** - Auto-capture transaction context
+
+### v2.1.0 (2025-01-05)
+- ✅ **Credit Card Support** - Track credit cards with utilization
+- ✅ **Dashboard Enhancement** - Net worth & credit card widgets
+- ✅ **Export Features** - PDF reports & Excel exports
+- ✅ **Search & Filters** - Advanced transaction filtering
+
+### v2.0.0 (2025-01-04)
+- ✅ **Analytics Dashboard** - Charts & insights
+- ✅ **Cash Flow Projection** - Future balance forecasting
+- ✅ **Investment Tracking** - Stocks, crypto, mutual funds
+- ✅ **KPR Tracker** - Mortgage payment schedules
+- ✅ **Recurring Transactions** - Auto-generate transactions
+- ✅ **Budget Alerts** - Email notifications
+- ✅ **CSV Import** - Bulk transaction import
+
+### v1.0.0 (2025-01-03)
+- ✅ **Core Features** - Transactions, accounts, budgets
+- ✅ **User Authentication** - Supabase Auth
+- ✅ **Multi-user Support** - RLS policies
+- ✅ **Categories** - Customizable categories
+- ✅ **Transaction Attachments** - Receipt uploads
+
+For detailed changelog, see [CHANGELOG.md](CHANGELOG.md)
 
 ## 🤝 Contributing
 

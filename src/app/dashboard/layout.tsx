@@ -27,7 +27,10 @@ import {
   Target,
   LineChart,
   Upload,
-  PieChart
+  PieChart,
+  History,
+  Bell,
+  LayoutTemplate
 } from 'lucide-react'
 
 export default function DashboardLayout({
@@ -136,6 +139,9 @@ export default function DashboardLayout({
       title: 'Planning',
       items: [
         { name: 'Budget', href: '/dashboard/budget', icon: Target },
+        { name: 'Budget Templates', href: '/dashboard/budget-templates', icon: LayoutTemplate },
+        { name: 'Savings Goals', href: '/dashboard/goals', icon: Target },
+        { name: 'Bill Reminders', href: '/dashboard/bills', icon: Bell },
         { name: 'Cash Flow', href: '/dashboard/cashflow', icon: LineChart },
       ]
     },
@@ -143,6 +149,7 @@ export default function DashboardLayout({
       title: 'Assets & Liabilities',
       items: [
         { name: 'Accounts', href: '/dashboard/accounts', icon: Wallet },
+        { name: 'Balance History', href: '/dashboard/balance-history', icon: History },
         { name: 'Investments', href: '/dashboard/investments', icon: PiggyBank },
         { name: 'KPR Tracker', href: '/dashboard/kpr', icon: Building2 },
       ]

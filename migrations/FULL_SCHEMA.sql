@@ -1,11 +1,19 @@
 -- ============================================================
 -- MONTHLY BUDGET TRACKER - COMPLETE DATABASE SCHEMA
 -- ============================================================
--- Version: 2.0
+-- Version: 2.3.0
 -- Last Updated: 2025-01-05
 -- Description: Complete Supabase PostgreSQL schema for Monthly Budget Tracker
 --
--- Features:
+-- IMPORTANT: This is the BASE schema. After running this, you MUST run
+-- the following additional migrations in order:
+--
+-- 1. ADD_CREDIT_CARD_SUPPORT.sql - Credit card accounts with utilization tracking
+-- 2. ADD_BALANCE_HISTORY_LOG.sql - Transaction-linked balance change history
+-- 3. ADD_GOALS_AND_BILLS.sql - Savings goals and bill reminders
+-- 4. ADD_BUDGET_TEMPLATES_AND_HEALTH_SCORE.sql - Budget templates & health scoring
+--
+-- Features in BASE schema:
 -- - Multi-user support with RLS (Row Level Security)
 -- - Accounts with sub-accounts (pockets, savers, wallets)
 -- - Transactions (income, expense, transfers)
@@ -19,6 +27,14 @@
 -- - Cash flow projections
 -- - Multi-currency support
 -- - SMTP Email configuration per user
+--
+-- Features in ADDITIONAL migrations:
+-- - Credit card accounts with credit limit & utilization (v2.1.0)
+-- - Balance history with transaction context (v2.1.2)
+-- - Savings goals with progress tracking (v2.2.0)
+-- - Bill reminders with payment history (v2.2.0)
+-- - Budget templates (50/30/20, Zero-Based) (v2.3.0)
+-- - Financial health score (0-100) (v2.3.0)
 -- ============================================================
 
 -- ============================================================
@@ -94,10 +110,11 @@ CREATE TABLE IF NOT EXISTS accounts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   account_name TEXT NOT NULL,
-  account_type TEXT CHECK (account_type IN ('checking', 'savings', 'investment', 'crypto', 'debt')) NOT NULL,
+  account_type TEXT CHECK (account_type IN ('checking', 'savings', 'investment', 'crypto', 'debt', 'credit_card')) NOT NULL,
   bank_name TEXT NOT NULL,
   balance DECIMAL(15, 2) DEFAULT 0,
   currency TEXT DEFAULT 'IDR',
+  credit_limit DECIMAL(15, 2),
   owner TEXT CHECK (owner IN ('husband', 'wife', 'joint')) NOT NULL,
   is_active BOOLEAN DEFAULT TRUE,
   parent_account_id UUID REFERENCES accounts(id) ON DELETE CASCADE,
@@ -107,9 +124,10 @@ CREATE TABLE IF NOT EXISTS accounts (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-COMMENT ON TABLE accounts IS 'Bank accounts with support for sub-accounts (pockets, savers, wallets)';
+COMMENT ON TABLE accounts IS 'Bank accounts with support for sub-accounts (pockets, savers, wallets) and credit cards';
 COMMENT ON COLUMN accounts.parent_account_id IS 'References parent account if this is a sub-account';
 COMMENT ON COLUMN accounts.sub_account_type IS 'Type of sub-account: pocket, saver, wallet, virtual';
+COMMENT ON COLUMN accounts.credit_limit IS 'Credit limit for credit card accounts (NULL for non-credit card accounts)';
 
 -- ------------------------------------------------------------
 -- 4. CATEGORIES
