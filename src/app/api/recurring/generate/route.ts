@@ -4,10 +4,14 @@ import { addDays, addWeeks, addMonths, addYears, format } from 'date-fns'
 
 // Initialize Supabase client with service role key for background jobs
 // Note: This should use service role key from env for admin access
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+
+if (!supabaseUrl || !supabaseKey) {
+  console.warn('Supabase environment variables are missing for recurring API')
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey)
 
 function calculateNextOccurrence(currentDate: string, frequency: string, customDays?: number): string {
   const date = new Date(currentDate)

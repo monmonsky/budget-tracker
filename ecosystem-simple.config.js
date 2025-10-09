@@ -17,10 +17,6 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: 3344
       },
-      log_date_format: 'YYYY-MM-DD HH:mm Z',
-      error_file: '~/.pm2/logs/monthly-budget-dashboard-error.log',
-      out_file: '~/.pm2/logs/monthly-budget-dashboard-out.log',
-      log_file: '~/.pm2/logs/monthly-budget-dashboard-combined.log',
       time: true
     }
   ]

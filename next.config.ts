@@ -7,6 +7,10 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  experimental: {
+    serverComponentsExternalPackages: ['@supabase/supabase-js'],
+  },
+  output: 'standalone',
 };
 
 export default nextConfig;
