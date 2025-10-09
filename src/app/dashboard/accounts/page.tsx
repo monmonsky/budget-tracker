@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -38,8 +38,10 @@ interface BalanceHistory {
 }
 
 export default function AccountsPage() {
-  const { setLoading, setLoadingText } = useLoading()
+  // Note: LoadingContext was removed due to infinite re-render issues
+  // Using local isLoading state instead
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [showSubAccountForm, setShowSubAccountForm] = useState(false)
@@ -60,27 +62,69 @@ export default function AccountsPage() {
     sub_account_type: '' as 'pocket' | 'saver' | 'wallet' | 'virtual' | '',
   })
 
-  const fetchAccounts = async () => {
-    setLoadingText('Loading accounts...')
-    setLoading(true)
+  // Create a stable fetchAccounts function
+  const fetchAccountsRef = useRef<() => Promise<void>>()
 
+  fetchAccountsRef.current = async () => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('accounts')
         .select('*')
         .order('bank_name')
 
-      setAccounts(data || [])
+      if (error) {
+        console.error('Error fetching accounts:', error)
+        toast.error('Failed to load accounts', {
+          description: error.message
+        })
+      } else {
+        setAccounts(data || [])
+      }
     } catch (error) {
-      console.error('Error fetching accounts:', error)
-    } finally {
-      setLoading(false)
+      console.error('Unexpected error fetching accounts:', error)
+      toast.error('Failed to load accounts')
     }
   }
 
   useEffect(() => {
-    fetchAccounts()
-  }, [fetchAccounts])
+    let cancelled = false
+
+    const loadData = async () => {
+      try {
+        setIsLoading(true)
+
+        const { data, error } = await supabase
+          .from('accounts')
+          .select('*')
+          .order('bank_name')
+
+        if (cancelled) return
+
+        if (error) {
+          console.error('Error fetching accounts:', error)
+          toast.error('Failed to load accounts', {
+            description: error.message
+          })
+        } else {
+          setAccounts(data || [])
+        }
+      } catch (error) {
+        if (cancelled) return
+        console.error('Unexpected error fetching accounts:', error)
+        toast.error('Failed to load accounts')
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    loadData()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -153,7 +197,7 @@ export default function AccountsPage() {
       setSubmitting(false)
 
       // Refresh data
-      fetchAccounts()
+      fetchAccountsRef.current?.()
     } catch (error: unknown) {
       console.error('Error adding account:', error)
       toast.error('Failed to add account', {
@@ -251,6 +295,17 @@ export default function AccountsPage() {
   // Get sub-accounts for a parent
   const getSubAccounts = (parentId: string) => {
     return subAccounts.filter(sub => sub.parent_account_id === parentId)
+  }
+
+  if (isLoading && accounts.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading accounts...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

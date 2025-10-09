@@ -115,6 +115,7 @@ export default function IncomePage() {
       if (!user) return
 
       // Insert transaction
+      // Note: Account balance is auto-updated by database trigger (update_account_balance_on_insert)
       const { error } = await supabase
         .from('transactions')
         .insert({
@@ -129,20 +130,6 @@ export default function IncomePage() {
         })
 
       if (error) throw error
-
-      // Update account balance
-      const { data: account } = await supabase
-        .from('accounts')
-        .select('balance')
-        .eq('id', formData.account_id)
-        .single()
-
-      if (account) {
-        await supabase
-          .from('accounts')
-          .update({ balance: Number(account.balance) + parseFloat(formData.amount) })
-          .eq('id', formData.account_id)
-      }
 
       // Reset form
       setFormData({
