@@ -11,11 +11,11 @@ module.exports = {
       max_memory_restart: '1G',
       env: {
         NODE_ENV: 'production',
-        PORT: 3344
+        PORT: 3345
       },
       env_production: {
         NODE_ENV: 'production',
-        PORT: 3344
+        PORT: 3345
       },
       log_date_format: 'YYYY-MM-DD HH:mm Z',
       error_file: '~/.pm2/logs/monthly-budget-dashboard-error.log',
