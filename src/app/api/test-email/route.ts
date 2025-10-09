@@ -33,12 +33,12 @@ export async function POST(request: NextRequest) {
     try {
       await transporter.verify()
       console.log('[Test Email] SMTP connection verified successfully')
-    } catch (verifyError: any) {
+    } catch (verifyError: unknown) {
       console.error('[Test Email] SMTP verification failed:', verifyError)
       return NextResponse.json(
         {
           error: 'SMTP connection failed',
-          details: verifyError.message,
+          details: verifyError instanceof Error ? verifyError.message : 'Unknown verification error',
         },
         { status: 400 }
       )

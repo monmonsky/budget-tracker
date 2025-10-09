@@ -45,7 +45,6 @@ export default function AccountsPage() {
   const [showSubAccountForm, setShowSubAccountForm] = useState(false)
   const [selectedParentAccount, setSelectedParentAccount] = useState<string | null>(null)
   const [showBalanceHistory, setShowBalanceHistory] = useState(false)
-  const [selectedAccountForHistory, setSelectedAccountForHistory] = useState<string | null>(null)
   const [balanceHistory, setBalanceHistory] = useState<BalanceHistory[]>([])
 
   // Form state
@@ -60,10 +59,6 @@ export default function AccountsPage() {
     parent_account_id: '',
     sub_account_type: '' as 'pocket' | 'saver' | 'wallet' | 'virtual' | '',
   })
-
-  useEffect(() => {
-    fetchAccounts()
-  }, [])
 
   const fetchAccounts = async () => {
     setLoadingText('Loading accounts...')
@@ -83,6 +78,10 @@ export default function AccountsPage() {
     }
   }
 
+  useEffect(() => {
+    fetchAccounts()
+  }, [fetchAccounts])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
@@ -97,7 +96,7 @@ export default function AccountsPage() {
         return
       }
 
-      const insertData: any = {
+      const insertData: Record<string, unknown> = {
         user_id: user.id,
         account_name: formData.account_name,
         account_type: formData.account_type,
@@ -155,10 +154,10 @@ export default function AccountsPage() {
 
       // Refresh data
       fetchAccounts()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error adding account:', error)
       toast.error('Failed to add account', {
-        description: error?.message || 'Unknown error',
+        description: error instanceof Error ? error.message : 'Unknown error',
       })
       setSubmitting(false)
     }
@@ -226,7 +225,6 @@ export default function AccountsPage() {
       }
 
       setBalanceHistory(data || [])
-      setSelectedAccountForHistory(accountId)
       setShowBalanceHistory(true)
     } catch (error) {
       console.error('Error:', error)
@@ -582,7 +580,6 @@ export default function AccountsPage() {
                 onClick={() => {
                   setShowBalanceHistory(false)
                   setBalanceHistory([])
-                  setSelectedAccountForHistory(null)
                 }}
               >
                 <X className="h-4 w-4" />
